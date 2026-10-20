@@ -5,24 +5,21 @@ require('dotenv').config();
 const db = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const roomRoutes = require('./routes/roomRoutes');
-const reservationRoutes = require('./routes/reservationRoutes'); // <-- Importar rutas de reservas
-const clientRoutes = require('./routes/clientRoutes'); // <-- Importar
+const reservationRoutes = require('./routes/reservationRoutes'); 
+const clientRoutes = require('./routes/clientRoutes'); 
 
 const app = express();
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-    console.log(`Servidor corriendo en el puerto ${PORT}`);
-});
 
-// Middlewares
+// 1. PRIMERO: Middlewares esenciales para procesar JSON y CORS
 app.use(cors());
 app.use(express.json());
 
-// Rutas de la API
+// 2. SEGUNDO: Registrar todas las rutas de la API
 app.use('/api/auth', authRoutes);
 app.use('/api/habitaciones', roomRoutes);
-app.use('/api/reservas', reservationRoutes); // <-- Registrar endpoint de reservas
-app.use('/api/clientes', clientRoutes); // <-- Registrar endpoint
+app.use('/api/reservas', reservationRoutes); 
+app.use('/api/clientes', clientRoutes); 
 
 // Ruta de prueba inicial
 app.get('/', (req, res) => {
@@ -47,7 +44,7 @@ app.get('/test-db', async (req, res) => {
     }
 });
 
-// Iniciar servidor
+// 3. TERCERO: Iniciar el servidor una sola vez al final de todo
 app.listen(PORT, () => {
     console.log(`Servidor corriendo en el puerto ${PORT}`);
 });

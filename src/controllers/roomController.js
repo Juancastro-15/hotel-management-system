@@ -5,31 +5,26 @@ const obtenerHabitaciones = async (req, res) => {
     try {
         const { estado, tipo, page = 1, limit = 10 } = req.query;
 
-        // Calcular desplazamiento (offset) para la paginación
         const offset = (page - 1) * limit;
 
         let query = 'SELECT * FROM habitaciones WHERE 1=1';
         const params = [];
 
-        // Filtro por Estado
         if (estado) {
             params.push(estado);
             query += ` AND estado = $${params.length}`;
         }
 
-        // Filtro por Tipo de Habitación (ILIKE busca sin importar mayúsculas/minúsculas)
         if (tipo) {
             params.push(tipo);
             query += ` AND tipo ILIKE $${params.length}`;
         }
 
-        // Ordenamiento y Paginación
         query += ` ORDER BY id ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
         params.push(limit, offset);
 
         const resultado = await db.query(query, params);
 
-        // Obtener el conteo total de registros filtrados para la metadata
         let countQuery = 'SELECT COUNT(*) FROM habitaciones WHERE 1=1';
         const countParams = [];
         if (estado) {
@@ -73,10 +68,20 @@ const obtenerHabitacionPorId = async (req, res) => {
     }
 };
 
-// Crear una nueva habitación
+// Crear una nueva habitación (Actualizado para recibir datos del propietario)
 const crearHabitacion = async (req, res) => {
     try {
-        const { numero, tipo, precio_noche, estado, descripcion } = req.body;
+        const { 
+            numero, 
+            tipo, 
+            precio_noche, 
+            estado, 
+            descripcion,
+            nombres_propietario,
+            apellidos_propietario,
+            email_propietario,
+            celular_propietario
+        } = req.body;
 
         // Verificar si el número de habitación ya existe
         const habitacionExiste = await db.query('SELECT * FROM habitaciones WHERE numero = $1', [numero]);
@@ -85,13 +90,25 @@ const crearHabitacion = async (req, res) => {
         }
 
         const nuevaHabitacion = await db.query(
-            `INSERT INTO habitaciones (numero, tipo, precio_noche, estado, descripcion) 
-             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-            [numero, tipo, precio_noche, estado || 'disponible', descripcion]
+            `INSERT INTO habitaciones (
+                numero, tipo, precio_noche, estado, descripcion, 
+                nombres_propietario, apellidos_propietario, email_propietario, celular_propietario
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+            [
+                numero, 
+                tipo, 
+                precio_noche, 
+                estado || 'Disponible', 
+                descripcion || null,
+                nombres_propietario || null,
+                apellidos_propietario || null,
+                email_propietario || null,
+                celular_propietario || null
+            ]
         );
 
         res.status(201).json({
-            mensaje: '¡Habitación creada con éxito!',
+            mensaje: '¡Propiedad creada con éxito!',
             habitacion: nuevaHabitacion.rows[0]
         });
     } catch (error) {
@@ -100,11 +117,21 @@ const crearHabitacion = async (req, res) => {
     }
 };
 
-// Actualizar una habitación
+// Actualizar una habitación (Actualizado para actualizar datos del propietario)
 const actualizarHabitacion = async (req, res) => {
     try {
         const { id } = req.params;
-        const { numero, tipo, precio_noche, estado, descripcion } = req.body;
+        const { 
+            numero, 
+            tipo, 
+            precio_noche, 
+            estado, 
+            descripcion,
+            nombres_propietario,
+            apellidos_propietario,
+            email_propietario,
+            celular_propietario
+        } = req.body;
 
         const habitacionActualizada = await db.query(
             `UPDATE habitaciones 
@@ -112,9 +139,24 @@ const actualizarHabitacion = async (req, res) => {
                  tipo = COALESCE($2, tipo), 
                  precio_noche = COALESCE($3, precio_noche), 
                  estado = COALESCE($4, estado), 
-                 descripcion = COALESCE($5, descripcion) 
-             WHERE id = $6 RETURNING *`,
-            [numero, tipo, precio_noche, estado, descripcion, id]
+                 descripcion = COALESCE($5, descripcion),
+                 nombres_propietario = COALESCE($6, nombres_propietario),
+                 apellidos_propietario = COALESCE($7, apellidos_propietario),
+                 email_propietario = COALESCE($8, email_propietario),
+                 celular_propietario = COALESCE($9, celular_propietario)
+             WHERE id = $10 RETURNING *`,
+            [
+                numero, 
+                tipo, 
+                precio_noche, 
+                estado, 
+                descripcion,
+                nombres_propietario,
+                apellidos_propietario,
+                email_propietario,
+                celular_propietario,
+                id
+            ]
         );
 
         if (habitacionActualizada.rows.length === 0) {
@@ -122,7 +164,7 @@ const actualizarHabitacion = async (req, res) => {
         }
 
         res.json({
-            mensaje: '¡Habitación actualizada con éxito!',
+            mensaje: '¡Propiedad actualizada con éxito!',
             habitacion: habitacionActualizada.rows[0]
         });
     } catch (error) {

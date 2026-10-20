@@ -1,0 +1,111 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  background-color: #f4f6f9;
+  color: #333;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Login Screen */
+#login-screen {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background: #2c3e50;
+}
+
+.login-card {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+  width: 320px;
+}
+
+.login-card input {
+  width: 100%;
+  padding: 10px;
+  margin: 8px 0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.login-card button {
+  width: 100%;
+  padding: 10px;
+  background: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* Dashboard Layout */
+#dashboard-screen {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 240px;
+  background: #2c3e50;
+  color: white;
+  padding: 1.5rem;
+}
+
+.sidebar nav button {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin-top: 10px;
+  background: transparent;
+  color: white;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.sidebar nav button:hover {
+  background: #34495e;
+}
+
+.content {
+  flex: 1;
+  padding: 2rem;
+}
+
+/* Tablas */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.data-table th, .data-table td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.data-table th {
+  background-color: #f8f9fa;
+}
+
+.error-msg {
+  color: #e74c3c;
+  font-size: 0.85rem;
+  margin-top: 5px;
+}
