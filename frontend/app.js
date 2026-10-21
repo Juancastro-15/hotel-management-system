@@ -1,7 +1,9 @@
 // URL de tu backend en Render
 const API_URL = 'https://hotel-management-system-dun5.onrender.com/api';
 
-// 1. Manejo del Login
+let allRooms = []; // Memoria global para filtros y búsqueda
+
+// 1. Manejo del Login (capturando rol y ID de usuario)
 document.getElementById('login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const email = document.getElementById('login-email').value;
@@ -18,6 +20,15 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 
     if (res.ok) {
       localStorage.setItem('jwt_token', data.token);
+      
+      // Asignamos el rol (por defecto 'propietario' si el backend no lo envía explícito)
+      const rol = data.rol || (data.usuario && data.usuario.rol) || 'propietario';
+      localStorage.setItem('user_role', rol.toLowerCase());
+
+      // Guardamos el ID del usuario para filtrar si es propietario
+      const userId = data.userId || data.id || (data.usuario && (data.usuario.id || data.usuario._id)) || '';
+      localStorage.setItem('user_id', userId);
+
       showDashboard();
     } else {
       document.getElementById('login-error').innerText = data.mensaje || 'Error al ingresar';
@@ -27,151 +38,265 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
   }
 });
 
-// 2. Mostrar Dashboard
+// 2. Mostrar Dashboard y aplicar permisos según el rol
 function showDashboard() {
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('dashboard-screen').classList.remove('hidden');
+  applyRolePermissions();
   loadRooms();
 }
 
-// 3. Cargar Habitaciones y Propietarios en tiempo real (con Checkboxes)
+function applyRolePermissions() {
+  const role = localStorage.getItem('user_role') || 'propietario';
+  const isAdmin = role === 'admin' || role === 'administrador';
+  const isOperador = role === 'recepcionista' || role === 'operador';
+  const isPropietario = role === 'propietario';
+
+  // Mostrar/Ocultar elementos exclusivos de Administrador
+  document.querySelectorAll('.admin-only').forEach(el => {
+    el.style.display = isAdmin ? '' : 'none';
+  });
+
+  // Badge visual en la cabecera
+  const badge = document.getElementById('user-role-badge');
+  if (badge) {
+    if (isAdmin) {
+      badge.innerText = '👑 Administrador';
+      badge.style.background = '#6f42c1';
+    } else if (isOperador) {
+      badge.innerText = '🛎️ Recepcionista / Operador';
+      badge.style.background = '#17a2b8';
+    } else {
+      badge.innerText = '🏠 Propietario';
+      badge.style.background = '#28a745';
+    }
+  }
+}
+
+// 3. Cargar Habitaciones con filtrado inteligente por Rol
 async function loadRooms() {
   const token = localStorage.getItem('jwt_token');
+  const role = localStorage.getItem('user_role') || 'propietario';
+  const userId = localStorage.getItem('user_id');
+
   try {
     const res = await fetch(`${API_URL}/habitaciones`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const data = await res.json();
 
-    const rooms = Array.isArray(data) ? data : (data.habitaciones || data.data || []);
-    const tbody = document.getElementById('rooms-list');
-    tbody.innerHTML = '';
+    let rooms = Array.isArray(data) ? data : (data.habitaciones || data.data || []);
 
-    if (rooms.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center;">No hay propiedades registradas.</td></tr>`;
-      return;
+    // Si el rol es Propietario, filtramos únicamente sus propiedades asociadas
+    if (role === 'propietario' && userId) {
+      rooms = rooms.filter(room => 
+        String(room.propietario_id || room.user_id || room.usuario_id) === String(userId)
+      );
     }
 
-    rooms.forEach(room => {
-      const estado = room.estado || room.status || 'Disponible';
-      const roomId = room.id || room._id;
-      const numeroApto = room.numero || room.room_number || '';
-      const tipoApto = room.tipo || room.type || '';
-      const precioApto = room.precio_noche || room.precio || room.price || 0;
-      
-      const nombresP = room.nombres_propietario || '';
-      const apellidosP = room.apellidos_propietario || '';
-      const emailP = room.email_propietario || '';
-      const celularP = room.celular_propietario || '';
-      
-      const nombreCompleto = nombresP ? `${nombresP} ${apellidosP}` : 'Administración';
-      const contactoP = celularP || emailP || 'N/A';
-
-      // Botones dinámicos de Check-In / Check-Out
-      let actionButtons = '';
-      if (estado.toLowerCase() === 'disponible') {
-        actionButtons += `<button class="btn-checkin" onclick="realizarCheckIn(${roomId})">Check-In</button> `;
-      } else {
-        actionButtons += `<button class="btn-checkout" onclick="realizarCheckOut(${roomId})">Check-Out</button> `;
-      }
-
-      // Botón para Editar
-      actionButtons += `<button onclick="openEditRoomModal(${roomId}, '${numeroApto}', '${tipoApto}', ${precioApto}, '${nombresP}', '${apellidosP}', '${emailP}', '${celularP}')" style="background:#ffc107; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; color: #000; font-weight: bold; margin-right: 4px;">Editar</button>`;
-
-      // Botón individual para Eliminar
-      actionButtons += `<button onclick="eliminarHabitacion(${roomId}, '${numeroApto}')" style="background:#dc3545; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; color: #fff; font-weight: bold;">Eliminar</button>`;
-
-      tbody.innerHTML += `
-        <tr>
-          <td><input type="checkbox" class="room-checkbox" value="${roomId}" data-numero="${numeroApto}"></td>
-          <td><strong>${numeroApto}</strong></td>
-          <td>${tipoApto}</td>
-          <td>$${precioApto}</td>
-          <td>${nombreCompleto}<br><small style="color: #666;">${contactoP}</small></td>
-          <td><span class="status ${estado}">${estado}</span></td>
-          <td>${actionButtons}</td>
-        </tr>
-      `;
-    });
+    allRooms = rooms;
+    renderRoomsTable(allRooms);
+    updateKPIs(allRooms);
   } catch (err) {
     console.error('Error al cargar habitaciones:', err);
   }
 }
 
-// 4. Seleccionar / Deseleccionar todos los checkboxes
+// 4. Renderizar la tabla de habitaciones
+function renderRoomsTable(rooms) {
+  const tbody = document.getElementById('rooms-list');
+  tbody.innerHTML = '';
+
+  const role = localStorage.getItem('user_role') || 'propietario';
+  const isAdmin = role === 'admin' || role === 'administrador';
+  const isPropietario = role === 'propietario';
+
+  if (rooms.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px; color: #666;">No hay propiedades registradas o asociadas.</td></tr>`;
+    return;
+  }
+
+  rooms.forEach(room => {
+    const estado = room.estado || room.status || 'Disponible';
+    const roomId = room.id || room._id;
+    const numeroApto = room.numero || room.room_number || '';
+    const tipoApto = room.tipo || room.type || '';
+    const precioApto = room.precio_noche || room.precio || room.price || 0;
+    
+    const nombresP = room.nombres_propietario || '';
+    const apellidosP = room.apellidos_propietario || '';
+    const emailP = room.email_propietario || '';
+    const celularP = room.celular_propietario || '';
+    
+    const nombreCompleto = nombresP ? `${nombresP} ${apellidosP}` : 'Administración';
+    const contactoP = celularP || emailP || 'N/A';
+
+    let actionButtons = '';
+
+    // Botones de Check-In / Check-Out operativos (Admin y Operador)
+    if (!isPropietario) {
+      if (estado.toLowerCase() === 'disponible') {
+        actionButtons += `<button class="btn-checkin" onclick="realizarCheckIn(${roomId})">Check-In</button> `;
+      } else {
+        actionButtons += `<button class="btn-checkout" onclick="realizarCheckOut(${roomId})">Check-Out</button> `;
+      }
+    } else {
+      // Botón especial para el Propietario (Informar próximo ingreso)
+      actionButtons += `<button onclick="openCheckInModal(${roomId}, '${numeroApto}')" style="background:#007bff; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; color: #fff; font-weight: bold;">📅 Informar Check-In</button>`;
+    }
+
+    // Botones exclusivos de Admin (Editar / Eliminar)
+    if (isAdmin) {
+      actionButtons += `<button onclick="openEditRoomModal(${roomId}, '${numeroApto}', '${tipoApto}', ${precioApto}, '${nombresP}', '${apellidosP}', '${emailP}', '${celularP}')" style="background:#ffc107; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; color: #000; font-weight: bold; margin-right: 4px;">Editar</button>`;
+      actionButtons += `<button onclick="eliminarHabitacion(${roomId}, '${numeroApto}')" style="background:#dc3545; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; color: #fff; font-weight: bold;">Eliminar</button>`;
+    }
+
+    tbody.innerHTML += `
+      <tr>
+        <td class="admin-only" style="text-align: center;"><input type="checkbox" class="room-checkbox" value="${roomId}" data-numero="${numeroApto}"></td>
+        <td><strong>${numeroApto}</strong></td>
+        <td>${tipoApto}</td>
+        <td>$${Number(precioApto).toLocaleString()}</td>
+        <td>${nombreCompleto}<br><small style="color: #666;">${contactoP}</small></td>
+        <td><span class="status ${estado}">${estado}</span></td>
+        <td>${actionButtons}</td>
+      </tr>
+    `;
+  });
+
+  // Re-aplicar visibilidad admin tras pintar
+  applyRolePermissions();
+}
+
+// 5. Actualizar KPIs (Tarjetas de resumen)
+function updateKPIs(rooms) {
+  const total = rooms.length;
+  const disponibles = rooms.filter(r => (r.estado || r.status || '').toLowerCase() === 'disponible').length;
+  const ocupadas = total - disponibles;
+
+  document.getElementById('kpi-total').innerText = total;
+  document.getElementById('kpi-disponibles').innerText = disponibles;
+  document.getElementById('kpi-ocupadas').innerText = ocupadas;
+}
+
+// 6. Filtrar habitaciones en tiempo real
+function filtrarHabitaciones() {
+  const texto = document.getElementById('search-input').value.toLowerCase();
+  const estadoFiltro = document.getElementById('filter-status').value;
+
+  const filtered = allRooms.filter(room => {
+    const numero = (room.numero || room.room_number || '').toLowerCase();
+    const nombres = (room.nombres_propietario || '').toLowerCase();
+    const apellidos = (room.apellidos_propietario || '').toLowerCase();
+    const estado = (room.estado || room.status || '').toLowerCase();
+
+    const coincideTexto = numero.includes(texto) || nombres.includes(texto) || apellidos.includes(texto);
+    const coincideEstado = estadoFiltro === 'todos' || estado === estadoFiltro;
+
+    return coincideTexto && coincideEstado;
+  });
+
+  renderRoomsTable(filtered);
+}
+
+// 7. Funciones para Modal de Propietario (Informar Check-In)
+function openCheckInModal(roomId, numero) {
+  document.getElementById('checkin-room-id').value = roomId;
+  document.getElementById('checkin-room-title').innerText = `Informar Próximo Check-In - Apto ${numero}`;
+  const modal = document.getElementById('propietario-checkin-modal');
+  modal.classList.remove('hidden');
+  modal.style.display = 'flex';
+}
+
+function closeCheckInModal() {
+  const modal = document.getElementById('propietario-checkin-modal');
+  modal.classList.add('hidden');
+  modal.style.display = 'none';
+}
+
+async function enviarAvisoCheckIn(event) {
+  event.preventDefault();
+  const roomId = document.getElementById('checkin-room-id').value;
+  const fecha = document.getElementById('checkin-fecha').value;
+  const huesped = document.getElementById('checkin-huesped').value;
+  const token = localStorage.getItem('jwt_token');
+
+  try {
+    const res = await fetch(`${API_URL}/habitaciones/${roomId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ 
+        estado: 'Reservado / Por llegar', 
+        proximo_huesped: huesped, 
+        fecha_ingreso: fecha 
+      })
+    });
+
+    if (res.ok) {
+      alert('¡Aviso de check-in enviado con éxito a la administración!');
+      closeCheckInModal();
+      loadRooms();
+    } else {
+      const data = await res.json();
+      alert('Error: ' + (data.mensaje || 'No se pudo registrar el aviso'));
+    }
+  } catch (err) {
+    console.error('Error:', err);
+    alert('Error de conexión con el servidor');
+  }
+}
+
+// 8. Seleccionar todos (Admin)
 function toggleSelectAll(source) {
   const checkboxes = document.querySelectorAll('.room-checkbox');
   checkboxes.forEach(cb => cb.checked = source.checked);
 }
 
-// 5. Eliminar múltiples propiedades seleccionadas a la vez
+// 9. Eliminar múltiples seleccionados (Admin)
 async function eliminarSeleccionados() {
   const checkboxes = document.querySelectorAll('.room-checkbox:checked');
-  
   if (checkboxes.length === 0) {
-    alert('Por favor selecciona al menos una propiedad para eliminar.');
+    alert('Selecciona al menos una propiedad.');
     return;
   }
 
-  const confirmacion = confirm(`¿Estás seguro de que deseas eliminar las ${checkboxes.length} propiedades seleccionadas? Esta acción no se puede deshacer.`);
-  if (!confirmacion) return;
+  if (!confirm(`¿Eliminar las ${checkboxes.length} propiedades seleccionadas?`)) return;
 
   const token = localStorage.getItem('jwt_token');
-  
-  // Creamos un arreglo de promesas para eliminar todas en paralelo
   const promesas = Array.from(checkboxes).map(async (cb) => {
-    const id = cb.value;
     try {
-      const res = await fetch(`${API_URL}/habitaciones/${id}`, {
+      const res = await fetch(`${API_URL}/habitaciones/${cb.value}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       return res.ok;
-    } catch (e) {
+    } catch {
       return false;
     }
   });
 
-  try {
-    const resultados = await Promise.all(promesas);
-    const exitosos = resultados.filter(Boolean).length;
-    
-    alert(`Se eliminaron correctamente ${exitosos} de ${checkboxes.length} propiedades.`);
-    loadRooms(); // Recarga la tabla al instante
-  } catch (err) {
-    console.error('Error al eliminar en lote:', err);
-    alert('Ocurrió un error al intentar procesar la eliminación múltiple.');
-  }
+  const resultados = await Promise.all(promesas);
+  const exitosos = resultados.filter(Boolean).length;
+  alert(`Se eliminaron correctamente ${exitosos} de ${checkboxes.length} propiedades.`);
+  loadRooms();
 }
 
-// 6. Apertura y Cierre de Modal (Crear / Editar)
+// 10. Modales de Administración (Crear / Editar)
 function openRoomModal() {
-  const titleEl = document.getElementById('modal-title');
-  if (titleEl) titleEl.innerText = 'Registrar Propiedad / Propietario';
-  
-  const editIdEl = document.getElementById('room-id-edit');
-  if (editIdEl) editIdEl.value = '';
-
-  const formEl = document.getElementById('room-form');
-  if (formEl) formEl.reset();
-
-  const modalEl = document.getElementById('room-modal');
-  if (modalEl) {
-    modalEl.classList.remove('hidden');
-    modalEl.style.display = 'flex';
-  }
+  document.getElementById('modal-title').innerText = 'Registrar Propiedad';
+  document.getElementById('room-id-edit').value = '';
+  document.getElementById('room-form').reset();
+  const modal = document.getElementById('room-modal');
+  modal.classList.remove('hidden');
+  modal.style.display = 'flex';
 }
 
 function openEditRoomModal(id, numero, tipo, precio, nombres, apellidos, email, celular) {
-  const titleEl = document.getElementById('modal-title');
-  if (titleEl) titleEl.innerText = 'Editar Propiedad / Propietario';
-  
-  const editIdEl = document.getElementById('room-id-edit');
-  if (editIdEl) editIdEl.value = id;
-  
+  document.getElementById('modal-title').innerText = 'Editar Propiedad';
+  document.getElementById('room-id-edit').value = id;
   document.getElementById('room-number').value = numero || '';
   document.getElementById('room-type').value = tipo || 'Apartamento';
   document.getElementById('room-price').value = precio || '';
@@ -180,48 +305,31 @@ function openEditRoomModal(id, numero, tipo, precio, nombres, apellidos, email, 
   document.getElementById('owner-email').value = email || '';
   document.getElementById('owner-phone').value = celular || '';
 
-  const modalEl = document.getElementById('room-modal');
-  if (modalEl) {
-    modalEl.classList.remove('hidden');
-    modalEl.style.display = 'flex';
-  }
+  const modal = document.getElementById('room-modal');
+  modal.classList.remove('hidden');
+  modal.style.display = 'flex';
 }
 
 function closeRoomModal() {
-  const modalEl = document.getElementById('room-modal');
-  if (modalEl) {
-    modalEl.classList.add('hidden');
-    modalEl.style.display = 'none';
-  }
-  const formEl = document.getElementById('room-form');
-  if (formEl) formEl.reset();
+  const modal = document.getElementById('room-modal');
+  modal.classList.add('hidden');
+  modal.style.display = 'none';
 }
 
-// 7. Guardar Propiedad (POST si es nuevo, PUT si se está editando)
 async function saveRoom(event) {
   event.preventDefault();
-  
   const idEdit = document.getElementById('room-id-edit').value;
   const isEditing = idEdit !== '';
 
-  const numero = document.getElementById('room-number').value;
-  const tipo = document.getElementById('room-type').value;
-  const precio = document.getElementById('room-price').value;
-
   const payload = {
-    numero: numero,
-    room_number: numero,
-    tipo: tipo,
-    type: tipo,
-    precio_noche: Number(precio),
-    precio: Number(precio),
-    price: Number(precio),
+    numero: document.getElementById('room-number').value,
+    tipo: document.getElementById('room-type').value,
+    precio_noche: Number(document.getElementById('room-price').value),
     nombres_propietario: document.getElementById('owner-name').value,
     apellidos_propietario: document.getElementById('owner-lastname').value,
     email_propietario: document.getElementById('owner-email').value,
     celular_propietario: document.getElementById('owner-phone').value,
-    estado: 'Disponible',
-    status: 'Disponible'
+    estado: 'Disponible'
   };
 
   const token = localStorage.getItem('jwt_token');
@@ -238,119 +346,80 @@ async function saveRoom(event) {
       body: JSON.stringify(payload)
     });
 
-    const data = await res.json();
-
     if (res.ok) {
       closeRoomModal();
       loadRooms();
     } else {
-      console.error('Error de API:', data);
-      alert('Error al guardar: ' + (data.mensaje || data.message || JSON.stringify(data)));
+      const data = await res.json();
+      alert('Error al guardar: ' + (data.mensaje || 'Error desconocido'));
     }
   } catch (err) {
-    console.error('Error en la petición:', err);
+    console.error(err);
     alert('Error de conexión con el servidor');
   }
 }
 
-function createRoom(event) {
-  saveRoom(event);
-}
-
-// 8. Cambiar entre secciones
-function showSection(section) {
-  document.querySelectorAll('.module').forEach(sec => sec.classList.add('hidden'));
-  const targetSec = document.getElementById(`sec-${section}`);
-  if (targetSec) targetSec.classList.remove('hidden');
-}
-
-// 9. Cerrar Sesión
-function logout() {
-  localStorage.removeItem('jwt_token');
-  location.reload();
-}
-
-// Validar token existente al abrir la app
-if (localStorage.getItem('jwt_token')) {
-  showDashboard();
-}
-
-// 10. Realizar Check-In
+// 11. Operaciones Operativas (Check-In / Check-Out)
 async function realizarCheckIn(id) {
   const token = localStorage.getItem('jwt_token');
   try {
     const res = await fetch(`${API_URL}/habitaciones/${id}`, {
       method: 'PUT',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}` 
-      },
-      body: JSON.stringify({ estado: 'Ocupada' }) 
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ estado: 'Ocupada' })
     });
-
-    if (res.ok) {
-      loadRooms();
-    } else {
-      const errData = await res.json();
-      alert(errData.mensaje || 'No se pudo realizar el Check-In');
-    }
-  } catch (err) {
-    console.error('Error en Check-In:', err);
-    alert('Error de conexión con el servidor');
+    if (res.ok) loadRooms();
+    else alert('No se pudo realizar el Check-In');
+  } catch {
+    alert('Error de conexión');
   }
 }
 
-// 11. Realizar Check-Out
 async function realizarCheckOut(id) {
   const token = localStorage.getItem('jwt_token');
   try {
     const res = await fetch(`${API_URL}/habitaciones/${id}`, {
       method: 'PUT',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}` 
-      },
-      body: JSON.stringify({ estado: 'Disponible' }) 
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ estado: 'Disponible' })
     });
-
-    if (res.ok) {
-      loadRooms();
-    } else {
-      const errData = await res.json();
-      alert(errData.mensaje || 'No se pudo realizar el Check-Out');
-    }
-  } catch (err) {
-    console.error('Error en Check-Out:', err);
-    alert('Error de conexión con el servidor');
+    if (res.ok) loadRooms();
+    else alert('No se pudo realizar el Check-Out');
+  } catch {
+    alert('Error de conexión');
   }
 }
 
-// 12. Eliminar Habitación / Propiedad Individual
+// 12. Eliminar individual
 async function eliminarHabitacion(id, numero) {
-  const confirmacion = confirm(`¿Estás seguro de que deseas eliminar la propiedad "${numero}"? Esta acción no se puede deshacer.`);
-  
-  if (!confirmacion) return;
-
+  if (!confirm(`¿Eliminar la propiedad "${numero}"?`)) return;
   const token = localStorage.getItem('jwt_token');
   try {
     const res = await fetch(`${API_URL}/habitaciones/${id}`, {
       method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
+      headers: { 'Authorization': `Bearer ${token}` }
     });
-
-    const data = await res.json();
-
-    if (res.ok) {
-      alert('Propiedad eliminada correctamente.');
-      loadRooms();
-    } else {
-      alert('Error al eliminar: ' + (data.error || data.mensaje || 'No se pudo completar la acción'));
-    }
-  } catch (err) {
-    console.error('Error al eliminar habitación:', err);
-    alert('Error de conexión al intentar eliminar la propiedad.');
+    if (res.ok) loadRooms();
+    else alert('No se pudo eliminar');
+  } catch {
+    alert('Error de conexión');
   }
+}
+
+function showSection(section) {
+  document.querySelectorAll('.module').forEach(sec => sec.classList.add('hidden'));
+  const target = document.getElementById(`sec-${section}`);
+  if (target) target.classList.remove('hidden');
+}
+
+function logout() {
+  localStorage.removeItem('jwt_token');
+  localStorage.removeItem('user_role');
+  localStorage.removeItem('user_id');
+  location.reload();
+}
+
+// Validar sesión activa al cargar
+if (localStorage.getItem('jwt_token')) {
+  showDashboard();
 }
