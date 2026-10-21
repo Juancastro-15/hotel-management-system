@@ -198,21 +198,21 @@
     </div>
   </div>
 
-<!-- Modal Propietarios: Informar Próximo Check-In con Días de Estancia -->
+  <!-- Modal Propietarios (Fecha Inicio - Fecha Fin) -->
   <div id="propietario-checkin-modal" class="modal hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000;">
     <div class="modal-content" style="background: white; padding: 25px; border-radius: 8px; width: 380px; max-height: 90vh;">
-      <h3 id="checkin-room-title" style="margin-top: 0; color: #333;">Informar Próximo Check-In</h3>
+      <h3 id="checkin-room-title" style="margin-top: 0; color: #333;">Informar Próxima Reserva</h3>
       <form onsubmit="enviarAvisoCheckIn(event)">
         <input type="hidden" id="checkin-room-id">
         
         <div style="margin-bottom: 10px;">
-          <label style="font-size: 13px; font-weight: bold;">Fecha de Ingreso:</label><br>
-          <input type="date" id="checkin-fecha" required style="width: 100%; padding: 7px; margin-top: 3px; box-sizing: border-box;">
+          <label style="font-size: 13px; font-weight: bold;">Fecha Inicio (Llegada):</label><br>
+          <input type="date" id="checkin-fecha-inicio" required style="width: 100%; padding: 7px; margin-top: 3px; box-sizing: border-box;">
         </div>
 
         <div style="margin-bottom: 10px;">
-          <label style="font-size: 13px; font-weight: bold;">Días de Estancia:</label><br>
-          <input type="number" id="checkin-dias" min="1" value="1" required placeholder="Ej. 3" style="width: 100%; padding: 7px; margin-top: 3px; box-sizing: border-box;">
+          <label style="font-size: 13px; font-weight: bold;">Fecha Fin (Salida):</label><br>
+          <input type="date" id="checkin-fecha-fin" required style="width: 100%; padding: 7px; margin-top: 3px; box-sizing: border-box;">
         </div>
 
         <div style="margin-bottom: 15px;">
