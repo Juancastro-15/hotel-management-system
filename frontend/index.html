@@ -8,16 +8,49 @@
 </head>
 <body>
 
-  <!-- Vista 1: Login -->
+  <!-- Vista 1: Login y Registro -->
   <div id="login-screen" class="screen">
-    <div class="login-card">
-      <h2>Inicia Sesión</h2>
-      <form id="login-form">
-        <input type="email" id="login-email" placeholder="Correo electrónico" required>
-        <input type="password" id="login-password" placeholder="Contraseña" required>
-        <button type="submit">Ingresar</button>
-      </form>
-      <p id="login-error" class="error-msg"></p>
+    <div class="login-card" style="background: white; padding: 25px; border-radius: 8px; width: 350px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">
+      
+      <!-- Formulario de Login -->
+      <div id="form-login-container">
+        <h2 style="margin-top: 0; color: #333;">Inicia Sesión</h2>
+        <form id="login-form">
+          <input type="email" id="login-email" placeholder="Correo electrónico" required style="width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box;">
+          <input type="password" id="login-password" placeholder="Contraseña" required style="width: 100%; padding: 8px; margin-bottom: 15px; box-sizing: border-box;">
+          <button type="submit" style="width: 100%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Ingresar</button>
+        </form>
+        <p id="login-error" class="error-msg" style="color: red; font-size: 13px; margin-top: 10px;"></p>
+        
+        <p style="text-align: center; margin-top: 15px; font-size: 13px;">
+          ¿No tienes cuenta? <a href="#" onclick="toggleAuthView('register')" style="color: #007bff; text-decoration: none; font-weight: bold;">Regístrate aquí</a>
+        </p>
+      </div>
+
+      <!-- Formulario de Registro (Oculto por defecto) -->
+      <div id="form-register-container" class="hidden" style="display: none;">
+        <h2 style="margin-top: 0; color: #333;">Crear Cuenta</h2>
+        <form id="register-form" onsubmit="registrarNuevoUsuario(event)">
+          <input type="text" id="reg-nombre" placeholder="Nombre completo" required style="width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box;">
+          <input type="email" id="reg-email" placeholder="Correo electrónico" required style="width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box;">
+          <input type="password" id="reg-password" placeholder="Contraseña" required style="width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box;">
+          
+          <label style="font-size: 12px; font-weight: bold; color: #555;">Rol de Cuenta:</label>
+          <select id="reg-rol" style="width: 100%; padding: 8px; margin-bottom: 15px; margin-top: 3px; box-sizing: border-box;">
+            <option value="propietario">Propietario</option>
+            <option value="recepcionista">Recepcionista / Operador</option>
+            <option value="admin">Administrador</option>
+          </select>
+
+          <button type="submit" style="width: 100%; padding: 10px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Registrarse</button>
+        </form>
+        <p id="register-error" style="color: red; font-size: 13px; margin-top: 10px;"></p>
+        
+        <p style="text-align: center; margin-top: 15px; font-size: 13px;">
+          ¿Ya tienes cuenta? <a href="#" onclick="toggleAuthView('login')" style="color: #007bff; text-decoration: none; font-weight: bold;">Inicia sesión</a>
+        </p>
+      </div>
+
     </div>
   </div>
 
