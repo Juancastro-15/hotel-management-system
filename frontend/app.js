@@ -103,7 +103,7 @@ function openRoomModal() {
   if (titleEl) titleEl.innerText = 'Registrar Propiedad / Propietario';
   
   const editIdEl = document.getElementById('room-id-edit');
-  if (editIdEl) editIdEl.value = ''; // Vacío indica que es un registro nuevo
+  if (editIdEl) editIdEl.value = '';
 
   const formEl = document.getElementById('room-form');
   if (formEl) formEl.reset();
@@ -120,9 +120,8 @@ function openEditRoomModal(id, numero, tipo, precio, nombres, apellidos, email, 
   if (titleEl) titleEl.innerText = 'Editar Propiedad / Propietario';
   
   const editIdEl = document.getElementById('room-id-edit');
-  if (editIdEl) editIdEl.value = id; // Asigna el ID para actualizar
+  if (editIdEl) editIdEl.value = id;
   
-  // Rellenar campos
   document.getElementById('room-number').value = numero || '';
   document.getElementById('room-type').value = tipo || 'Apartamento';
   document.getElementById('room-price').value = precio || '';
@@ -193,7 +192,7 @@ async function saveRoom(event) {
 
     if (res.ok) {
       closeRoomModal();
-      loadRooms(); // Actualiza la tabla al instante
+      loadRooms();
     } else {
       console.error('Error de API:', data);
       alert('Error al guardar: ' + (data.mensaje || data.message || JSON.stringify(data)));
@@ -208,7 +207,7 @@ function createRoom(event) {
   saveRoom(event);
 }
 
-// 6. Cambiar entre secciones de la barra lateral
+// 6. Cambiar entre secciones
 function showSection(section) {
   document.querySelectorAll('.module').forEach(sec => sec.classList.add('hidden'));
   const targetSec = document.getElementById(`sec-${section}`);
@@ -236,4 +235,72 @@ async function realizarCheckIn(id) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}` 
       },
-      body: JSON.stringify({ estado: 'Ocupada' })
+      body: JSON.stringify({ estado: 'Ocupada' }) 
+    });
+
+    if (res.ok) {
+      loadRooms();
+    } else {
+      const errData = await res.json();
+      alert(errData.mensaje || 'No se pudo realizar el Check-In');
+    }
+  } catch (err) {
+    console.error('Error en Check-In:', err);
+    alert('Error de conexión con el servidor');
+  }
+}
+
+// 9. Realizar Check-Out
+async function realizarCheckOut(id) {
+  const token = localStorage.getItem('jwt_token');
+  try {
+    const res = await fetch(`${API_URL}/habitaciones/${id}`, {
+      method: 'PUT',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}` 
+      },
+      body: JSON.stringify({ estado: 'Disponible' }) 
+    });
+
+    if (res.ok) {
+      loadRooms();
+    } else {
+      const errData = await res.json();
+      alert(errData.mensaje || 'No se pudo realizar el Check-Out');
+    }
+  } catch (err) {
+    console.error('Error en Check-Out:', err);
+    alert('Error de conexión con el servidor');
+  }
+}
+
+// 10. Eliminar Habitación / Propiedad
+async function eliminarHabitacion(id, numero) {
+  const confirmacion = confirm(`¿Estás seguro de que deseas eliminar la propiedad "${numero}"? Esta acción no se puede deshacer.`);
+  
+  if (!confirmacion) return;
+
+  const token = localStorage.getItem('jwt_token');
+  try {
+    const res = await fetch(`${API_URL}/habitaciones/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      alert('Propiedad eliminada correctamente.');
+      loadRooms();
+    } else {
+      alert('Error al eliminar: ' + (data.error || data.mensaje || 'No se pudo completar la acción'));
+    }
+  } catch (err) {
+    console.error('Error al eliminar habitación:', err);
+    alert('Error de conexión al intentar eliminar la propiedad.');
+  }
+}
