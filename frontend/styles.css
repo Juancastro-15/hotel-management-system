@@ -109,3 +109,23 @@ body {
   font-size: 0.85rem;
   margin-top: 5px;
 }
+
+.btn-checkin {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  margin-right: 4px;
+}
+
+.btn-checkout {
+  background-color: #17a2b8;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  margin-right: 4px;
+}

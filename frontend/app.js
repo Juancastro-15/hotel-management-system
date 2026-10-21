@@ -76,7 +76,10 @@ async function loadRooms() {
       }
 
       // Botón para Editar
-      actionButtons += `<button onclick="openEditRoomModal(${roomId}, '${numeroApto}', '${tipoApto}', ${precioApto}, '${nombresP}', '${apellidosP}', '${emailP}', '${celularP}')" style="background:#ffc107; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; color: #000; font-weight: bold;">Editar</button>`;
+      actionButtons += `<button onclick="openEditRoomModal(${roomId}, '${numeroApto}', '${tipoApto}', ${precioApto}, '${nombresP}', '${apellidosP}', '${emailP}', '${celularP}')" style="background:#ffc107; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; color: #000; font-weight: bold; margin-right: 4px;">Editar</button>`;
+
+      // Botón para Eliminar
+      actionButtons += `<button onclick="eliminarHabitacion(${roomId}, '${numeroApto}')" style="background:#dc3545; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; color: #fff; font-weight: bold;">Eliminar</button>`;
 
       tbody.innerHTML += `
         <tr>
@@ -233,42 +236,4 @@ async function realizarCheckIn(id) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}` 
       },
-      body: JSON.stringify({ estado: 'Ocupada' }) 
-    });
-
-    if (res.ok) {
-      loadRooms();
-    } else {
-      const errData = await res.json();
-      alert(errData.mensaje || 'No se pudo realizar el Check-In');
-    }
-  } catch (err) {
-    console.error('Error en Check-In:', err);
-    alert('Error de conexión con el servidor');
-  }
-}
-
-// 9. Realizar Check-Out
-async function realizarCheckOut(id) {
-  const token = localStorage.getItem('jwt_token');
-  try {
-    const res = await fetch(`${API_URL}/habitaciones/${id}`, {
-      method: 'PUT',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}` 
-      },
-      body: JSON.stringify({ estado: 'Disponible' }) 
-    });
-
-    if (res.ok) {
-      loadRooms();
-    } else {
-      const errData = await res.json();
-      alert(errData.mensaje || 'No se pudo realizar el Check-Out');
-    }
-  } catch (err) {
-    console.error('Error en Check-Out:', err);
-    alert('Error de conexión con el servidor');
-  }
-}
+      body: JSON.stringify({ estado: 'Ocupada' })
