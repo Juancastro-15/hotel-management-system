@@ -34,7 +34,7 @@ function showDashboard() {
   loadRooms();
 }
 
-// 3. Cargar Habitaciones y Propietarios en tiempo real
+// 3. Cargar Habitaciones y Propietarios en tiempo real (con Checkboxes)
 async function loadRooms() {
   const token = localStorage.getItem('jwt_token');
   try {
@@ -48,7 +48,7 @@ async function loadRooms() {
     tbody.innerHTML = '';
 
     if (rooms.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align: center;">No hay propiedades registradas.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7" style="text-align: center;">No hay propiedades registradas.</td></tr>`;
       return;
     }
 
@@ -78,11 +78,12 @@ async function loadRooms() {
       // Botón para Editar
       actionButtons += `<button onclick="openEditRoomModal(${roomId}, '${numeroApto}', '${tipoApto}', ${precioApto}, '${nombresP}', '${apellidosP}', '${emailP}', '${celularP}')" style="background:#ffc107; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; color: #000; font-weight: bold; margin-right: 4px;">Editar</button>`;
 
-      // Botón para Eliminar
+      // Botón individual para Eliminar
       actionButtons += `<button onclick="eliminarHabitacion(${roomId}, '${numeroApto}')" style="background:#dc3545; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; color: #fff; font-weight: bold;">Eliminar</button>`;
 
       tbody.innerHTML += `
         <tr>
+          <td><input type="checkbox" class="room-checkbox" value="${roomId}" data-numero="${numeroApto}"></td>
           <td><strong>${numeroApto}</strong></td>
           <td>${tipoApto}</td>
           <td>$${precioApto}</td>
@@ -97,7 +98,56 @@ async function loadRooms() {
   }
 }
 
-// 4. Apertura y Cierre de Modal (Crear / Editar)
+// 4. Seleccionar / Deseleccionar todos los checkboxes
+function toggleSelectAll(source) {
+  const checkboxes = document.querySelectorAll('.room-checkbox');
+  checkboxes.forEach(cb => cb.checked = source.checked);
+}
+
+// 5. Eliminar múltiples propiedades seleccionadas a la vez
+async function eliminarSeleccionados() {
+  const checkboxes = document.querySelectorAll('.room-checkbox:checked');
+  
+  if (checkboxes.length === 0) {
+    alert('Por favor selecciona al menos una propiedad para eliminar.');
+    return;
+  }
+
+  const confirmacion = confirm(`¿Estás seguro de que deseas eliminar las ${checkboxes.length} propiedades seleccionadas? Esta acción no se puede deshacer.`);
+  if (!confirmacion) return;
+
+  const token = localStorage.getItem('jwt_token');
+  
+  // Creamos un arreglo de promesas para eliminar todas en paralelo
+  const promesas = Array.from(checkboxes).map(async (cb) => {
+    const id = cb.value;
+    try {
+      const res = await fetch(`${API_URL}/habitaciones/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      return res.ok;
+    } catch (e) {
+      return false;
+    }
+  });
+
+  try {
+    const resultados = await Promise.all(promesas);
+    const exitosos = resultados.filter(Boolean).length;
+    
+    alert(`Se eliminaron correctamente ${exitosos} de ${checkboxes.length} propiedades.`);
+    loadRooms(); // Recarga la tabla al instante
+  } catch (err) {
+    console.error('Error al eliminar en lote:', err);
+    alert('Ocurrió un error al intentar procesar la eliminación múltiple.');
+  }
+}
+
+// 6. Apertura y Cierre de Modal (Crear / Editar)
 function openRoomModal() {
   const titleEl = document.getElementById('modal-title');
   if (titleEl) titleEl.innerText = 'Registrar Propiedad / Propietario';
@@ -147,7 +197,7 @@ function closeRoomModal() {
   if (formEl) formEl.reset();
 }
 
-// 5. Guardar Propiedad (POST si es nuevo, PUT si se está editando)
+// 7. Guardar Propiedad (POST si es nuevo, PUT si se está editando)
 async function saveRoom(event) {
   event.preventDefault();
   
@@ -207,14 +257,14 @@ function createRoom(event) {
   saveRoom(event);
 }
 
-// 6. Cambiar entre secciones
+// 8. Cambiar entre secciones
 function showSection(section) {
   document.querySelectorAll('.module').forEach(sec => sec.classList.add('hidden'));
   const targetSec = document.getElementById(`sec-${section}`);
   if (targetSec) targetSec.classList.remove('hidden');
 }
 
-// 7. Cerrar Sesión
+// 9. Cerrar Sesión
 function logout() {
   localStorage.removeItem('jwt_token');
   location.reload();
@@ -225,7 +275,7 @@ if (localStorage.getItem('jwt_token')) {
   showDashboard();
 }
 
-// 8. Realizar Check-In
+// 10. Realizar Check-In
 async function realizarCheckIn(id) {
   const token = localStorage.getItem('jwt_token');
   try {
@@ -250,7 +300,7 @@ async function realizarCheckIn(id) {
   }
 }
 
-// 9. Realizar Check-Out
+// 11. Realizar Check-Out
 async function realizarCheckOut(id) {
   const token = localStorage.getItem('jwt_token');
   try {
@@ -275,7 +325,7 @@ async function realizarCheckOut(id) {
   }
 }
 
-// 10. Eliminar Habitación / Propiedad
+// 12. Eliminar Habitación / Propiedad Individual
 async function eliminarHabitacion(id, numero) {
   const confirmacion = confirm(`¿Estás seguro de que deseas eliminar la propiedad "${numero}"? Esta acción no se puede deshacer.`);
   
