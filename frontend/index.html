@@ -34,15 +34,23 @@
     </aside>
 
     <main class="content">
+
       <!-- Sección Habitaciones -->
       <section id="sec-habitaciones" class="module">
-        <header class="module-header">
+        <header class="module-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
           <h2>Gestión de Habitaciones</h2>
-          <button onclick="openRoomModal()" class="btn-primary">+ Nueva Habitación</button>
+          <div style="display: flex; gap: 10px;">
+            <!-- Botón de eliminación masiva -->
+            <button onclick="eliminarSeleccionados()" style="background:#dc3545; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">
+              🗑️ Eliminar Seleccionados
+            </button>
+            <button onclick="openRoomModal()" class="btn-primary">+ Nueva Habitación</button>
+          </div>
         </header>
         <table class="data-table">
           <thead>
             <tr>
+              <th style="width: 40px; text-align: center;"><input type="checkbox" id="select-all" onclick="toggleSelectAll(this)"></th>
               <th>Número</th>
               <th>Tipo</th>
               <th>Precio/Noche</th>
