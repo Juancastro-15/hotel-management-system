@@ -3,7 +3,56 @@ const API_URL = 'https://hotel-management-system-dun5.onrender.com/api';
 
 let allRooms = []; // Memoria global para filtros y búsqueda
 
-// 1. Manejo del Login (capturando rol y ID de usuario)
+// 1. Cambiar entre Login y Registro en la interfaz
+function toggleAuthView(view) {
+  const loginContainer = document.getElementById('form-login-container');
+  const registerContainer = document.getElementById('form-register-container');
+  
+  if (view === 'register') {
+    loginContainer.classList.add('hidden');
+    loginContainer.style.display = 'none';
+    registerContainer.classList.remove('hidden');
+    registerContainer.style.display = 'block';
+  } else {
+    registerContainer.classList.add('hidden');
+    registerContainer.style.display = 'none';
+    loginContainer.classList.remove('hidden');
+    loginContainer.style.display = 'block';
+  }
+}
+
+// 2. Registrar un nuevo usuario (enviando a POST /api/auth/register)
+async function registrarNuevoUsuario(event) {
+  event.preventDefault();
+  
+  const nombre = document.getElementById('reg-nombre').value;
+  const email = document.getElementById('reg-email').value;
+  const password = document.getElementById('reg-password').value;
+  const rol = document.getElementById('reg-rol').value;
+
+  try {
+    const res = await fetch(`${API_URL}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre, email, password, rol })
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      alert('¡Cuenta creada con éxito! Ahora puedes iniciar sesión.');
+      document.getElementById('register-form').reset();
+      toggleAuthView('login');
+    } else {
+      document.getElementById('register-error').innerText = data.mensaje || 'Error al registrarse';
+    }
+  } catch (err) {
+    console.error('Error en registro:', err);
+    document.getElementById('register-error').innerText = 'No se pudo conectar con el servidor';
+  }
+}
+
+// 3. Manejo del Login (capturando rol y ID de usuario)
 document.getElementById('login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const email = document.getElementById('login-email').value;
@@ -21,11 +70,11 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     if (res.ok) {
       localStorage.setItem('jwt_token', data.token);
       
-      // Asignamos el rol (por defecto 'propietario' si el backend no lo envía explícito)
+      // Asignamos el rol enviado por el backend
       const rol = data.rol || (data.usuario && data.usuario.rol) || 'propietario';
       localStorage.setItem('user_role', rol.toLowerCase());
 
-      // Guardamos el ID del usuario para filtrar si es propietario
+      // Guardamos el ID del usuario
       const userId = data.userId || data.id || (data.usuario && (data.usuario.id || data.usuario._id)) || '';
       localStorage.setItem('user_id', userId);
 
@@ -38,7 +87,7 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
   }
 });
 
-// 2. Mostrar Dashboard y aplicar permisos según el rol
+// 4. Mostrar Dashboard y aplicar permisos según el rol
 function showDashboard() {
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('dashboard-screen').classList.remove('hidden');
@@ -50,7 +99,6 @@ function applyRolePermissions() {
   const role = localStorage.getItem('user_role') || 'propietario';
   const isAdmin = role === 'admin' || role === 'administrador';
   const isOperador = role === 'recepcionista' || role === 'operador';
-  const isPropietario = role === 'propietario';
 
   // Mostrar/Ocultar elementos exclusivos de Administrador
   document.querySelectorAll('.admin-only').forEach(el => {
@@ -73,7 +121,7 @@ function applyRolePermissions() {
   }
 }
 
-// 3. Cargar Habitaciones con filtrado inteligente por Rol
+// 5. Cargar Habitaciones con filtrado inteligente por Rol
 async function loadRooms() {
   const token = localStorage.getItem('jwt_token');
   const role = localStorage.getItem('user_role') || 'propietario';
@@ -102,7 +150,7 @@ async function loadRooms() {
   }
 }
 
-// 4. Renderizar la tabla de habitaciones
+// 6. Renderizar la tabla de habitaciones
 function renderRoomsTable(rooms) {
   const tbody = document.getElementById('rooms-list');
   tbody.innerHTML = '';
@@ -141,7 +189,7 @@ function renderRoomsTable(rooms) {
         actionButtons += `<button class="btn-checkout" onclick="realizarCheckOut(${roomId})">Check-Out</button> `;
       }
     } else {
-      // Botón especial para el Propietario (Informar próximo ingreso)
+      // Botón especial para el Propietario
       actionButtons += `<button onclick="openCheckInModal(${roomId}, '${numeroApto}')" style="background:#007bff; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; color: #fff; font-weight: bold;">📅 Informar Check-In</button>`;
     }
 
@@ -164,11 +212,10 @@ function renderRoomsTable(rooms) {
     `;
   });
 
-  // Re-aplicar visibilidad admin tras pintar
   applyRolePermissions();
 }
 
-// 5. Actualizar KPIs (Tarjetas de resumen)
+// 7. Actualizar KPIs (Tarjetas de resumen)
 function updateKPIs(rooms) {
   const total = rooms.length;
   const disponibles = rooms.filter(r => (r.estado || r.status || '').toLowerCase() === 'disponible').length;
@@ -179,7 +226,7 @@ function updateKPIs(rooms) {
   document.getElementById('kpi-ocupadas').innerText = ocupadas;
 }
 
-// 6. Filtrar habitaciones en tiempo real
+// 8. Filtrar habitaciones en tiempo real
 function filtrarHabitaciones() {
   const texto = document.getElementById('search-input').value.toLowerCase();
   const estadoFiltro = document.getElementById('filter-status').value;
@@ -199,7 +246,7 @@ function filtrarHabitaciones() {
   renderRoomsTable(filtered);
 }
 
-// 7. Funciones para Modal de Propietario (Informar Check-In)
+// 9. Modal de Propietario (Informar Check-In)
 function openCheckInModal(roomId, numero) {
   document.getElementById('checkin-room-id').value = roomId;
   document.getElementById('checkin-room-title').innerText = `Informar Próximo Check-In - Apto ${numero}`;
@@ -249,13 +296,13 @@ async function enviarAvisoCheckIn(event) {
   }
 }
 
-// 8. Seleccionar todos (Admin)
+// 10. Seleccionar todos (Admin)
 function toggleSelectAll(source) {
   const checkboxes = document.querySelectorAll('.room-checkbox');
   checkboxes.forEach(cb => cb.checked = source.checked);
 }
 
-// 9. Eliminar múltiples seleccionados (Admin)
+// 11. Eliminar múltiples seleccionados (Admin)
 async function eliminarSeleccionados() {
   const checkboxes = document.querySelectorAll('.room-checkbox:checked');
   if (checkboxes.length === 0) {
@@ -284,7 +331,7 @@ async function eliminarSeleccionados() {
   loadRooms();
 }
 
-// 10. Modales de Administración (Crear / Editar)
+// 12. Modales de Administración (Crear / Editar)
 function openRoomModal() {
   document.getElementById('modal-title').innerText = 'Registrar Propiedad';
   document.getElementById('room-id-edit').value = '';
@@ -359,7 +406,7 @@ async function saveRoom(event) {
   }
 }
 
-// 11. Operaciones Operativas (Check-In / Check-Out)
+// 13. Operaciones Operativas (Check-In / Check-Out)
 async function realizarCheckIn(id) {
   const token = localStorage.getItem('jwt_token');
   try {
@@ -390,7 +437,7 @@ async function realizarCheckOut(id) {
   }
 }
 
-// 12. Eliminar individual
+// 14. Eliminar individual
 async function eliminarHabitacion(id, numero) {
   if (!confirm(`¿Eliminar la propiedad "${numero}"?`)) return;
   const token = localStorage.getItem('jwt_token');
@@ -419,7 +466,7 @@ function logout() {
   location.reload();
 }
 
-// Validar sesión activa al cargar
+// Validar sesión activa al cargar la página
 if (localStorage.getItem('jwt_token')) {
   showDashboard();
 }
