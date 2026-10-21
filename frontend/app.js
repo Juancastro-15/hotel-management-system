@@ -1,6 +1,7 @@
 const API_URL = 'https://hotel-management-system-dun5.onrender.com/api';
 
 let allRooms = []; 
+let allUsers = [];
 
 function toggleAuthView(view) {
   const loginContainer = document.getElementById('form-login-container');
@@ -72,6 +73,9 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
       const userId = data.userId || data.id || (data.usuario && (data.usuario.id || data.usuario._id)) || '';
       localStorage.setItem('user_id', userId);
 
+      const userName = data.nombre || (data.usuario && data.usuario.nombre) || email.split('@')[0];
+      localStorage.setItem('user_name', userName);
+
       const userEmail = email.toLowerCase();
       localStorage.setItem('user_email', userEmail);
 
@@ -88,7 +92,37 @@ function showDashboard() {
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('dashboard-screen').classList.remove('hidden');
   applyRolePermissions();
-  loadRooms();
+  showHomePortal();
+}
+
+function showHomePortal() {
+  const sidebar = document.getElementById('main-sidebar');
+  if (sidebar) {
+    sidebar.classList.add('hidden');
+    sidebar.style.display = 'none';
+  }
+
+  document.querySelectorAll('.module').forEach(sec => sec.classList.add('hidden'));
+  const portal = document.getElementById('sec-home-portal');
+  if (portal) portal.classList.remove('hidden');
+}
+
+function showSection(section) {
+  const sidebar = document.getElementById('main-sidebar');
+  if (sidebar) {
+    sidebar.classList.remove('hidden');
+    sidebar.style.display = 'block';
+  }
+
+  document.querySelectorAll('.module').forEach(sec => sec.classList.add('hidden'));
+  const target = document.getElementById(`sec-${section}`);
+  if (target) target.classList.remove('hidden');
+
+  if (section === 'habitaciones') {
+    loadRooms();
+  } else if (section === 'clientes') {
+    loadUsers();
+  }
 }
 
 function applyRolePermissions() {
@@ -100,20 +134,192 @@ function applyRolePermissions() {
     el.style.display = isAdmin ? '' : 'none';
   });
 
+  const badgeText = isAdmin ? '👑 Administrador' : (isOperador ? '🛎️ Recepcionista / Operador' : '🏠 Propietario');
+  const badgeColor = isAdmin ? '#6f42c1' : (isOperador ? '#17a2b8' : '#28a745');
+
   const badge = document.getElementById('user-role-badge');
   if (badge) {
-    if (isAdmin) {
-      badge.innerText = '👑 Administrador';
-      badge.style.background = '#6f42c1';
-    } else if (isOperador) {
-      badge.innerText = '🛎️ Recepcionista / Operador';
-      badge.style.background = '#17a2b8';
-    } else {
-      badge.innerText = '🏠 Propietario';
-      badge.style.background = '#28a745';
-    }
+    badge.innerText = badgeText;
+    badge.style.background = badgeColor;
+  }
+
+  const homeBadge = document.getElementById('home-user-badge');
+  if (homeBadge) {
+    homeBadge.innerText = badgeText;
+    homeBadge.style.background = badgeColor;
   }
 }
+
+// --- MÓDULO DE CLIENTES / USUARIOS / PERFIL ---
+
+async function loadUsers() {
+  const role = localStorage.getItem('user_role') || 'propietario';
+  const isAdmin = role === 'admin' || role === 'administrador';
+
+  if (!isAdmin) {
+    // Si NO es admin, cargar únicamente su perfil personal
+    document.getElementById('admin-users-view').style.display = 'none';
+    document.getElementById('non-admin-profile-view').style.display = 'block';
+    document.getElementById('users-module-title').innerText = 'Mi Perfil de Usuario';
+    document.getElementById('users-module-desc').innerText = 'Consulta y actualiza tus datos registrados.';
+
+    document.getElementById('profile-nombre').value = localStorage.getItem('user_name') || '';
+    document.getElementById('profile-email').value = localStorage.getItem('user_email') || '';
+    document.getElementById('profile-rol').value = (role === 'propietario' ? '🏠 Propietario' : '🛎️ Recepcionista');
+    return;
+  }
+
+  // Si ES Administrador, cargar la lista de todos los usuarios
+  document.getElementById('admin-users-view').style.display = 'block';
+  document.getElementById('non-admin-profile-view').style.display = 'none';
+  document.getElementById('users-module-title').innerText = 'Gestión de Clientes y Usuarios';
+  document.getElementById('users-module-desc').innerText = 'Administra las cuentas registradas, permisos y roles de la plataforma.';
+
+  const token = localStorage.getItem('jwt_token');
+
+  try {
+    const res = await fetch(`${API_URL}/usuarios`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      allUsers = Array.isArray(data) ? data : (data.usuarios || data.data || []);
+      renderUsersTable(allUsers);
+    } else {
+      console.warn('No se pudo cargar la lista de usuarios desde la API');
+    }
+  } catch (err) {
+    console.error('Error al cargar usuarios:', err);
+  }
+}
+
+function renderUsersTable(users) {
+  const tbody = document.getElementById('users-list');
+  tbody.innerHTML = '';
+
+  if (users.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px; color: #666;">No hay otros usuarios registrados.</td></tr>`;
+    return;
+  }
+
+  users.forEach(usr => {
+    const uId = usr.id || usr._id;
+    const uNombre = usr.nombre || usr.name || 'Sin nombre';
+    const uEmail = usr.email || 'Sin correo';
+    const uRol = (usr.rol || 'propietario').toLowerCase();
+
+    let rolBadge = '<span style="background:#28a745; color:white; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold;">🏠 Propietario</span>';
+    if (uRol === 'admin' || uRol === 'administrador') {
+      rolBadge = '<span style="background:#6f42c1; color:white; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold;">👑 Administrador</span>';
+    } else if (uRol === 'recepcionista' || uRol === 'operador') {
+      rolBadge = '<span style="background:#17a2b8; color:white; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold;">🛎️ Recepcionista</span>';
+    }
+
+    tbody.innerHTML += `
+      <tr>
+        <td><strong>${uNombre}</strong></td>
+        <td>${uEmail}</td>
+        <td>${rolBadge}</td>
+        <td>
+          <button onclick="openUserModal('${uId}', '${uNombre}', '${uEmail}', '${uRol}')" style="background:#ffc107; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; font-weight:bold; color:#000;">✏️ Editar Rol / Datos</button>
+          <button onclick="eliminarUsuario('${uId}', '${uNombre}')" style="background:#dc3545; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; font-weight:bold; color:#fff; margin-left:4px;">🗑️ Eliminar</button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+function filtrarUsuarios() {
+  const texto = document.getElementById('search-users-input').value.toLowerCase();
+  const filtered = allUsers.filter(u => {
+    const nombre = (u.nombre || '').toLowerCase();
+    const email = (u.email || '').toLowerCase();
+    const rol = (u.rol || '').toLowerCase();
+    return nombre.includes(texto) || email.includes(texto) || rol.includes(texto);
+  });
+  renderUsersTable(filtered);
+}
+
+function openUserModal(id, nombre, email, rol) {
+  document.getElementById('edit-user-id').value = id;
+  document.getElementById('edit-user-nombre').value = nombre;
+  document.getElementById('edit-user-email').value = email;
+  document.getElementById('edit-user-rol').value = rol.includes('admin') ? 'admin' : (rol.includes('recep') ? 'recepcionista' : 'propietario');
+
+  const modal = document.getElementById('user-modal');
+  modal.classList.remove('hidden');
+  modal.style.display = 'flex';
+}
+
+function closeUserModal() {
+  const modal = document.getElementById('user-modal');
+  modal.classList.add('hidden');
+  modal.style.display = 'none';
+}
+
+async function guardarEdicionUsuario(event) {
+  event.preventDefault();
+  const uId = document.getElementById('edit-user-id').value;
+  const nombre = document.getElementById('edit-user-nombre').value;
+  const email = document.getElementById('edit-user-email').value;
+  const rol = document.getElementById('edit-user-rol').value;
+  const token = localStorage.getItem('jwt_token');
+
+  try {
+    const res = await fetch(`${API_URL}/usuarios/${uId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ nombre, email, rol })
+    });
+
+    if (res.ok) {
+      alert('¡Datos de usuario actualizados con éxito!');
+      closeUserModal();
+      loadUsers();
+    } else {
+      const data = await res.json();
+      alert('Error: ' + (data.mensaje || 'No se pudo actualizar el usuario'));
+    }
+  } catch (err) {
+    console.error(err);
+    alert('Error de conexión con el servidor');
+  }
+}
+
+async function eliminarUsuario(id, nombre) {
+  if (!confirm(`¿Estás seguro de eliminar la cuenta de "${nombre}"?`)) return;
+  const token = localStorage.getItem('jwt_token');
+
+  try {
+    const res = await fetch(`${API_URL}/usuarios/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (res.ok) {
+      alert('Usuario eliminado correctamente.');
+      loadUsers();
+    } else {
+      alert('No se pudo eliminar el usuario.');
+    }
+  } catch (err) {
+    console.error(err);
+    alert('Error de conexión');
+  }
+}
+
+async function actualizarMiPerfil(event) {
+  event.preventDefault();
+  const nuevoNombre = document.getElementById('profile-nombre').value;
+  localStorage.setItem('user_name', nuevoNombre);
+  alert('¡Perfil actualizado con éxito!');
+}
+
+// --- MÓDULO DE HABITACIONES ---
 
 async function loadRooms() {
   const token = localStorage.getItem('jwt_token');
@@ -174,7 +380,6 @@ function renderRoomsTable(rooms) {
     const nombreCompleto = nombresP ? `${nombresP} ${apellidosP}` : 'Administración';
     const contactoP = celularP || emailP || 'N/A';
 
-    // Formatear rango de fechas e información de huésped
     const huespedInfo = room.proximo_huesped ? `<br><small style="color:#007bff; font-weight:bold;">👤 Huésped: ${room.proximo_huesped}</small>` : '';
     
     let fechasInfo = '';
@@ -200,14 +405,14 @@ function renderRoomsTable(rooms) {
       if (estadoLower === 'disponible') {
         actionButtons += `<button onclick="openCheckInModal(${roomId}, '${numeroApto}')" style="background:#007bff; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; color: #fff; font-weight: bold;">📅 Informar Reserva</button>`;
       } else if (estadoLower.includes('reservado') || estadoLower.includes('por llegar')) {
-        actionButtons += `<small style="color:#17a2b8; font-weight:bold;">⏳ Pendiente de aprobación</small>`;
+        actionButtons += `<button onclick="cancelarPreReserva(${roomId}, '${numeroApto}')" style="background:#dc3545; color:white; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; font-weight:bold;">❌ Cancelar Reserva</button>`;
       } else if (estadoLower === 'ocupada') {
         actionButtons += `<small style="color:#e0a800; font-weight:bold;">🔴 Inmueble Ocupado</small>`;
       }
     }
 
     if (isAdmin) {
-      actionButtons += `<button onclick="openEditRoomModal(${roomId}, '${numeroApto}', '${tipoApto}', ${precioApto}, '${nombresP}', '${apellidosP}', '${emailP}', '${celularP}')" style="background:#ffc107; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; color: #000; font-weight: bold; margin-right: 4px;">Editar</button>`;
+      actionButtons += `<button onclick="openEditRoomModal(${roomId}, '${numeroApto}', '${tipoApto}', ${precioApto}, '${nombresP}', '${apellidosP}', '${emailP}', '${celularP}')" style="background:#ffc107; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; color: #000; font-weight: bold; margin-left: 4px; margin-right: 4px;">Editar</button>`;
       actionButtons += `<button onclick="eliminarHabitacion(${roomId}, '${numeroApto}')" style="background:#dc3545; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; color: #fff; font-weight: bold;">Eliminar</button>`;
     }
 
@@ -271,6 +476,39 @@ async function enviarAvisoCheckIn(event) {
     } else {
       const data = await res.json();
       alert('Error: ' + (data.mensaje || 'No se pudo registrar el aviso'));
+    }
+  } catch (err) {
+    console.error('Error:', err);
+    alert('Error de conexión con el servidor');
+  }
+}
+
+async function cancelarPreReserva(id, numeroApto) {
+  if (!confirm(`¿Estás seguro de cancelar la reserva para el Apto ${numeroApto}? Volverá a estar Disponible.`)) return;
+
+  const token = localStorage.getItem('jwt_token');
+
+  try {
+    const res = await fetch(`${API_URL}/habitaciones/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ 
+        estado: 'Disponible',
+        proximo_huesped: null,
+        fecha_ingreso: null,
+        fecha_salida: null
+      })
+    });
+
+    if (res.ok) {
+      alert(`Reserva del Apto ${numeroApto} cancelada exitosamente.`);
+      loadRooms();
+    } else {
+      const data = await res.json();
+      alert('Error al cancelar: ' + (data.mensaje || 'No se pudo completar la operación'));
     }
   } catch (err) {
     console.error('Error:', err);
@@ -499,16 +737,11 @@ async function eliminarHabitacion(id, numero) {
   }
 }
 
-function showSection(section) {
-  document.querySelectorAll('.module').forEach(sec => sec.classList.add('hidden'));
-  const target = document.getElementById(`sec-${section}`);
-  if (target) target.classList.remove('hidden');
-}
-
 function logout() {
   localStorage.removeItem('jwt_token');
   localStorage.removeItem('user_role');
   localStorage.removeItem('user_id');
+  localStorage.removeItem('user_name');
   localStorage.removeItem('user_email');
   location.reload();
 }
