@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const verificarToken = require('../middlewares/authMiddleware'); // <-- Importar middleware
+const verificarToken = require('../middlewares/authMiddleware');
+const verificarRol = require('../middlewares/roleMiddleware');
 const {
     obtenerHabitaciones,
     obtenerHabitacionPorId,
@@ -9,13 +10,16 @@ const {
     eliminarHabitacion
 } = require('../controllers/roomController');
 
-// Rutas públicas (cualquiera puede ver las habitaciones)
+// Rutas públicas de lectura
 router.get('/', obtenerHabitaciones);
 router.get('/:id', obtenerHabitacionPorId);
 
-// Rutas protegidas (requieren token JWT en los Headers)
-router.post('/', verificarToken, crearHabitacion);
-router.put('/:id', verificarToken, actualizarHabitacion);
-router.delete('/:id', verificarToken, eliminarHabitacion);
+// Rutas protegidas por Rol
+// Solo 'admin' puede crear o eliminar propiedades
+router.post('/', verificarToken, verificarRol(['admin']), crearHabitacion);
+router.delete('/:id', verificarToken, verificarRol(['admin']), eliminarHabitacion);
+
+// 'admin', 'operador' y 'propietario' pueden actualizar la propiedad según su caso
+router.put('/:id', verificarToken, verificarRol(['admin', 'recepcionista', 'operador', 'propietario']), actualizarHabitacion);
 
 module.exports = router;
