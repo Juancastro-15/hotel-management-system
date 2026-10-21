@@ -1,4 +1,5 @@
 const pool = require('../config/db');
+const bcrypt = require('bcrypt');
 
 // Obtener todos los usuarios (Solo Admin)
 const obtenerUsuarios = async (req, res) => {
@@ -51,8 +52,39 @@ const eliminarUsuario = async (req, res) => {
   }
 };
 
+// Restablecer contraseña de un usuario
+const restablecerPassword = async (req, res) => {
+  const { id } = req.params;
+  const { nuevoPassword } = req.body;
+
+  try {
+    if (!nuevoPassword || nuevoPassword.length < 6) {
+      return res.status(400).json({ mensaje: 'La contraseña debe tener al menos 6 caracteres' });
+    }
+
+    // Encriptar la nueva contraseña con bcrypt
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(nuevoPassword, salt);
+
+    const resultado = await pool.query(
+      'UPDATE usuarios SET password = $1 WHERE id = $2 RETURNING id, email',
+      [hashedPassword, id]
+    );
+
+    if (resultado.rows.length === 0) {
+      return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+    }
+
+    res.json({ mensaje: '¡Contraseña restablecida con éxito!' });
+  } catch (error) {
+    console.error('Error al restablecer contraseña:', error);
+    res.status(500).json({ mensaje: 'Error interno del servidor' });
+  }
+};
+
 module.exports = {
   obtenerUsuarios,
   actualizarUsuario,
-  eliminarUsuario
+  eliminarUsuario,
+  restablecerPassword
 };

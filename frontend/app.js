@@ -246,6 +246,7 @@ function openUserModal(id, nombre, email, rol) {
   document.getElementById('edit-user-nombre').value = nombre;
   document.getElementById('edit-user-email').value = email;
   document.getElementById('edit-user-rol').value = rol.includes('admin') ? 'admin' : (rol.includes('recep') ? 'recepcionista' : 'propietario');
+  document.getElementById('edit-user-password').value = '';
 
   const modal = document.getElementById('user-modal');
   modal.classList.remove('hidden');
@@ -264,6 +265,7 @@ async function guardarEdicionUsuario(event) {
   const nombre = document.getElementById('edit-user-nombre').value;
   const email = document.getElementById('edit-user-email').value;
   const rol = document.getElementById('edit-user-rol').value;
+  const nuevoPassword = document.getElementById('edit-user-password').value;
   const token = localStorage.getItem('jwt_token');
 
   try {
@@ -276,14 +278,32 @@ async function guardarEdicionUsuario(event) {
       body: JSON.stringify({ nombre, email, rol })
     });
 
-    if (res.ok) {
-      alert('¡Datos de usuario actualizados con éxito!');
-      closeUserModal();
-      loadUsers();
-    } else {
+    if (!res.ok) {
       const data = await res.json();
       alert('Error: ' + (data.mensaje || 'No se pudo actualizar el usuario'));
+      return;
     }
+
+    if (nuevoPassword.trim() !== '') {
+      const resPass = await fetch(`${API_URL}/usuarios/${uId}/password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ nuevoPassword })
+      });
+
+      if (!resPass.ok) {
+        alert('Se guardaron los datos, pero hubo un error al cambiar la contraseña.');
+        return;
+      }
+    }
+
+    alert('¡Usuario y credenciales actualizados con éxito!');
+    document.getElementById('edit-user-password').value = '';
+    closeUserModal();
+    loadUsers();
   } catch (err) {
     console.error(err);
     alert('Error de conexión con el servidor');
