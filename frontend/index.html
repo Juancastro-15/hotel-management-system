@@ -35,7 +35,6 @@
           <input type="email" id="reg-email" placeholder="Correo electrónico" required style="width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box;">
           <input type="password" id="reg-password" placeholder="Contraseña" required style="width: 100%; padding: 8px; margin-bottom: 15px; box-sizing: border-box;">
           
-          <!-- Rol forzado de forma segura para auto-registro -->
           <input type="hidden" id="reg-rol" value="propietario">
 
           <button type="submit" style="width: 100%; padding: 10px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Crear Cuenta de Propietario</button>
@@ -102,6 +101,7 @@
           <select id="filter-status" onchange="filtrarHabitaciones()" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
             <option value="todos">Todos los estados</option>
             <option value="disponible">Disponible</option>
+            <option value="reservado">Reservado / Por llegar</option>
             <option value="ocupada">Ocupada</option>
           </select>
         </div>
@@ -171,7 +171,6 @@
           <div style="margin-bottom: 10px;">
             <label style="font-size: 13px; font-weight: bold; color: #007bff;">Email de la cuenta registrada:</label><br>
             <input type="email" id="owner-email" required placeholder="correo_propietario@ejemplo.com" style="width: 100%; padding: 7px; margin-top: 3px; box-sizing: border-box;">
-            <small style="font-size: 11px; color: #666;">Debe coincidir con el email con el que se registró el propietario.</small>
           </div>
           
           <div style="display: flex; gap: 10px; margin-bottom: 10px;">
