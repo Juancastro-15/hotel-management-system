@@ -174,8 +174,15 @@ function renderRoomsTable(rooms) {
     const nombreCompleto = nombresP ? `${nombresP} ${apellidosP}` : 'Administración';
     const contactoP = celularP || emailP || 'N/A';
 
-    const huespedInfo = room.proximo_huesped ? `<br><small style="color:#007bff; font-weight:bold;">Huésped: ${room.proximo_huesped}</small>` : '';
-    const diasInfo = room.dias_estancia ? `<br><small style="color:#28a745; font-weight:bold;">Estancia: ${room.dias_estancia} día(s)</small>` : '';
+    // Formatear rango de fechas e información de huésped
+    const huespedInfo = room.proximo_huesped ? `<br><small style="color:#007bff; font-weight:bold;">👤 Huésped: ${room.proximo_huesped}</small>` : '';
+    
+    let fechasInfo = '';
+    if (room.fecha_ingreso || room.fecha_inicio) {
+      const fInicio = room.fecha_ingreso || room.fecha_inicio;
+      const fFin = room.fecha_salida || room.fecha_fin || 'N/A';
+      fechasInfo = `<br><small style="color:#28a745; font-weight:bold;">📅 ${fInicio} ➔ ${fFin}</small>`;
+    }
 
     let actionButtons = '';
 
@@ -191,7 +198,7 @@ function renderRoomsTable(rooms) {
       }
     } else {
       if (estadoLower === 'disponible') {
-        actionButtons += `<button onclick="openCheckInModal(${roomId}, '${numeroApto}')" style="background:#007bff; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; color: #fff; font-weight: bold;">📅 Informar Check-In</button>`;
+        actionButtons += `<button onclick="openCheckInModal(${roomId}, '${numeroApto}')" style="background:#007bff; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; color: #fff; font-weight: bold;">📅 Informar Reserva</button>`;
       } else if (estadoLower.includes('reservado') || estadoLower.includes('por llegar')) {
         actionButtons += `<small style="color:#17a2b8; font-weight:bold;">⏳ Pendiente de aprobación</small>`;
       } else if (estadoLower === 'ocupada') {
@@ -218,7 +225,7 @@ function renderRoomsTable(rooms) {
         <td>
           <span class="status" style="background-color: ${badgeColor}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold;">${estado}</span>
           ${huespedInfo}
-          ${diasInfo}
+          ${fechasInfo}
         </td>
         <td>${actionButtons}</td>
       </tr>
@@ -231,9 +238,15 @@ function renderRoomsTable(rooms) {
 async function enviarAvisoCheckIn(event) {
   event.preventDefault();
   const roomId = document.getElementById('checkin-room-id').value;
-  const fecha = document.getElementById('checkin-fecha').value;
-  const dias = document.getElementById('checkin-dias').value;
+  const fechaInicio = document.getElementById('checkin-fecha-inicio').value;
+  const fechaFin = document.getElementById('checkin-fecha-fin').value;
   const huesped = document.getElementById('checkin-huesped').value;
+
+  if (new Date(fechaFin) <= new Date(fechaInicio)) {
+    alert('La fecha fin debe ser posterior a la fecha de inicio.');
+    return;
+  }
+
   const token = localStorage.getItem('jwt_token');
 
   try {
@@ -246,13 +259,13 @@ async function enviarAvisoCheckIn(event) {
       body: JSON.stringify({ 
         estado: 'Reservado / Por llegar', 
         proximo_huesped: huesped, 
-        fecha_ingreso: fecha,
-        dias_estancia: Number(dias)
+        fecha_ingreso: fechaInicio,
+        fecha_salida: fechaFin
       })
     });
 
     if (res.ok) {
-      alert(`¡Aviso de reserva registrado! (${dias} días). Queda pendiente de aprobación por recepción.`);
+      alert(`¡Reserva registrada desde el ${fechaInicio} hasta el ${fechaFin}! Queda pendiente de aprobación por recepción.`);
       closeCheckInModal();
       loadRooms();
     } else {
@@ -322,7 +335,7 @@ function filtrarHabitaciones() {
 
 function openCheckInModal(roomId, numero) {
   document.getElementById('checkin-room-id').value = roomId;
-  document.getElementById('checkin-room-title').innerText = `Informar Próximo Check-In - Apto ${numero}`;
+  document.getElementById('checkin-room-title').innerText = `Informar Próxima Reserva - Apto ${numero}`;
   const modal = document.getElementById('propietario-checkin-modal');
   modal.classList.remove('hidden');
   modal.style.display = 'flex';
