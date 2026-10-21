@@ -23,26 +23,22 @@
         <p id="login-error" class="error-msg" style="color: red; font-size: 13px; margin-top: 10px;"></p>
         
         <p style="text-align: center; margin-top: 15px; font-size: 13px;">
-          ¿No tienes cuenta? <a href="#" onclick="toggleAuthView('register')" style="color: #007bff; text-decoration: none; font-weight: bold;">Regístrate aquí</a>
+          ¿Eres propietario y no tienes cuenta? <a href="#" onclick="toggleAuthView('register')" style="color: #007bff; text-decoration: none; font-weight: bold;">Regístrate aquí</a>
         </p>
       </div>
 
-      <!-- Formulario de Registro (Oculto por defecto) -->
+      <!-- Formulario de Registro Seguro (Fijo a Propietario) -->
       <div id="form-register-container" class="hidden" style="display: none;">
-        <h2 style="margin-top: 0; color: #333;">Crear Cuenta</h2>
+        <h2 style="margin-top: 0; color: #333;">Registro de Propietario</h2>
         <form id="register-form" onsubmit="registrarNuevoUsuario(event)">
           <input type="text" id="reg-nombre" placeholder="Nombre completo" required style="width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box;">
           <input type="email" id="reg-email" placeholder="Correo electrónico" required style="width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box;">
-          <input type="password" id="reg-password" placeholder="Contraseña" required style="width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box;">
+          <input type="password" id="reg-password" placeholder="Contraseña" required style="width: 100%; padding: 8px; margin-bottom: 15px; box-sizing: border-box;">
           
-          <label style="font-size: 12px; font-weight: bold; color: #555;">Rol de Cuenta:</label>
-          <select id="reg-rol" style="width: 100%; padding: 8px; margin-bottom: 15px; margin-top: 3px; box-sizing: border-box;">
-            <option value="propietario">Propietario</option>
-            <option value="recepcionista">Recepcionista / Operador</option>
-            <option value="admin">Administrador</option>
-          </select>
+          <!-- Rol forzado de forma segura para auto-registro -->
+          <input type="hidden" id="reg-rol" value="propietario">
 
-          <button type="submit" style="width: 100%; padding: 10px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Registrarse</button>
+          <button type="submit" style="width: 100%; padding: 10px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Crear Cuenta de Propietario</button>
         </form>
         <p id="register-error" style="color: red; font-size: 13px; margin-top: 10px;"></p>
         
@@ -73,21 +69,18 @@
         <header class="module-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px;">
           <div>
             <h2 style="margin: 0;">Gestión de Habitaciones</h2>
-            <!-- Badge dinámico de rol -->
             <span id="user-role-badge" style="font-size: 11px; padding: 3px 8px; border-radius: 12px; color: white; font-weight: bold; display: inline-block; margin-top: 5px;"></span>
           </div>
           
           <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-            <!-- Botón exclusivo Admin: Eliminar masivo -->
             <button class="admin-only" onclick="eliminarSeleccionados()" style="background:#dc3545; color:white; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; font-weight:bold;">
               🗑️ Eliminar Seleccionados
             </button>
-            <!-- Botón exclusivo Admin: Nueva Habitación -->
             <button class="admin-only" onclick="openRoomModal()" class="btn-primary">+ Nueva Habitación</button>
           </div>
         </header>
 
-        <!-- Tarjetas de Resumen (KPIs) -->
+        <!-- Tarjetas KPIs -->
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
           <div style="background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 4px solid #007bff;">
             <span style="font-size: 12px; color: #666; font-weight: bold;">TOTAL PROPIEDADES</span>
@@ -103,7 +96,7 @@
           </div>
         </div>
 
-        <!-- Barra de Búsqueda y Filtros en Tiempo Real -->
+        <!-- Filtros -->
         <div style="background: white; padding: 12px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
           <input type="text" id="search-input" onkeyup="filtrarHabitaciones()" placeholder="🔍 Buscar por número o propietario..." style="flex: 1; min-width: 200px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
           <select id="filter-status" onchange="filtrarHabitaciones()" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
@@ -125,19 +118,16 @@
               <th>Acciones</th>
             </tr>
           </thead>
-          <tbody id="rooms-list">
-            <!-- Se cargan dinámicamente con JS desde Render -->
-          </tbody>
+          <tbody id="rooms-list"></tbody>
         </table>
       </section>
 
-      <!-- Sección Clientes (Próximamente) -->
+      <!-- Módulos Adicionales -->
       <section id="sec-clientes" class="module hidden">
         <h2>Gestión de Clientes</h2>
         <p>Módulo de clientes en construcción...</p>
       </section>
 
-      <!-- Sección Reservas (Próximamente) -->
       <section id="sec-reservas" class="module hidden">
         <h2>Gestión de Reservas</h2>
         <p>Módulo de reservas en construcción...</p>
@@ -149,7 +139,6 @@
   <div id="room-modal" class="modal hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000;">
     <div class="modal-content" style="background: white; padding: 25px; border-radius: 8px; width: 420px; max-height: 90vh; overflow-y: auto;">
       <h3 id="modal-title" style="margin-top: 0; color: #333;">Registrar Propiedad</h3>
-      
       <input type="hidden" id="room-id-edit">
 
       <form id="room-form" onsubmit="saveRoom(event)">
@@ -177,7 +166,13 @@
         </fieldset>
 
         <fieldset style="border: 1px solid #ddd; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
-          <legend style="font-weight: bold; color: #555; padding: 0 5px;">Datos del Propietario</legend>
+          <legend style="font-weight: bold; color: #555; padding: 0 5px;">Vinculación con Propietario</legend>
+
+          <div style="margin-bottom: 10px;">
+            <label style="font-size: 13px; font-weight: bold; color: #007bff;">Email de la cuenta registrada:</label><br>
+            <input type="email" id="owner-email" required placeholder="correo_propietario@ejemplo.com" style="width: 100%; padding: 7px; margin-top: 3px; box-sizing: border-box;">
+            <small style="font-size: 11px; color: #666;">Debe coincidir con el email con el que se registró el propietario.</small>
+          </div>
           
           <div style="display: flex; gap: 10px; margin-bottom: 10px;">
             <div style="flex: 1;">
@@ -190,13 +185,8 @@
             </div>
           </div>
 
-          <div style="margin-bottom: 10px;">
-            <label style="font-size: 13px;">Email de Contacto:</label><br>
-            <input type="email" id="owner-email" required placeholder="correo@ejemplo.com" style="width: 100%; padding: 7px; margin-top: 3px; box-sizing: border-box;">
-          </div>
-
           <div style="margin-bottom: 5px;">
-            <label style="font-size: 13px;">Celular (con indicativo):</label><br>
+            <label style="font-size: 13px;">Celular:</label><br>
             <input type="text" id="owner-phone" required placeholder="+57 3001234567" style="width: 100%; padding: 7px; margin-top: 3px; box-sizing: border-box;">
           </div>
         </fieldset>
@@ -209,7 +199,7 @@
     </div>
   </div>
 
-  <!-- Modal exclusivo para Propietarios: Informar Próximo Check-In -->
+  <!-- Modal Propietarios -->
   <div id="propietario-checkin-modal" class="modal hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000;">
     <div class="modal-content" style="background: white; padding: 25px; border-radius: 8px; width: 380px; max-height: 90vh;">
       <h3 id="checkin-room-title" style="margin-top: 0; color: #333;">Informar Próximo Check-In</h3>
