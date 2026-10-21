@@ -145,7 +145,6 @@ async function loadRooms() {
   }
 }
 
-// Renderizado actualizado con aprobación de recepción y bloqueo de check-out prematuro
 function renderRoomsTable(rooms) {
   const tbody = document.getElementById('rooms-list');
   tbody.innerHTML = '';
@@ -175,30 +174,31 @@ function renderRoomsTable(rooms) {
     const nombreCompleto = nombresP ? `${nombresP} ${apellidosP}` : 'Administración';
     const contactoP = celularP || emailP || 'N/A';
 
+    const huespedInfo = room.proximo_huesped ? `<br><small style="color:#007bff; font-weight:bold;">Huésped: ${room.proximo_huesped}</small>` : '';
+    const diasInfo = room.dias_estancia ? `<br><small style="color:#28a745; font-weight:bold;">Estancia: ${room.dias_estancia} día(s)</small>` : '';
+
     let actionButtons = '';
 
-    // Lógica para Operador / Admin
     if (!isPropietario) {
       if (estadoLower === 'disponible') {
         actionButtons += `<button class="btn-checkin" onclick="realizarCheckIn(${roomId})">Check-In Directo</button> `;
       } 
       else if (estadoLower.includes('reservado') || estadoLower.includes('por llegar')) {
-        // Recepción aprueba el ingreso físico del huésped en el instante
         actionButtons += `<button onclick="confirmarIngresoHuesped(${roomId})" style="background:#28a745; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer; font-weight:bold; margin-right:4px;">✅ Aprobar Check-In</button> `;
       } 
       else if (estadoLower === 'ocupada') {
         actionButtons += `<button class="btn-checkout" onclick="realizarCheckOut(${roomId})">Check-Out</button> `;
       }
     } else {
-      // Lógica para el Propietario
       if (estadoLower === 'disponible') {
         actionButtons += `<button onclick="openCheckInModal(${roomId}, '${numeroApto}')" style="background:#007bff; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; color: #fff; font-weight: bold;">📅 Informar Check-In</button>`;
-      } else {
-        actionButtons += `<small style="color:#666; font-style:italic;">Aviso enviado a recepción</small>`;
+      } else if (estadoLower.includes('reservado') || estadoLower.includes('por llegar')) {
+        actionButtons += `<small style="color:#17a2b8; font-weight:bold;">⏳ Pendiente de aprobación</small>`;
+      } else if (estadoLower === 'ocupada') {
+        actionButtons += `<small style="color:#e0a800; font-weight:bold;">🔴 Inmueble Ocupado</small>`;
       }
     }
 
-    // Botones de Admin
     if (isAdmin) {
       actionButtons += `<button onclick="openEditRoomModal(${roomId}, '${numeroApto}', '${tipoApto}', ${precioApto}, '${nombresP}', '${apellidosP}', '${emailP}', '${celularP}')" style="background:#ffc107; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; color: #000; font-weight: bold; margin-right: 4px;">Editar</button>`;
       actionButtons += `<button onclick="eliminarHabitacion(${roomId}, '${numeroApto}')" style="background:#dc3545; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; color: #fff; font-weight: bold;">Eliminar</button>`;
@@ -206,7 +206,7 @@ function renderRoomsTable(rooms) {
 
     let badgeColor = '#28a745'; 
     if (estadoLower.includes('reservado') || estadoLower.includes('por llegar')) badgeColor = '#17a2b8'; 
-    if (estadoLower === 'ocupada') badgeColor = '#ffc107'; 
+    if (estadoLower === 'ocupada') badgeColor = '#e0a800'; 
 
     tbody.innerHTML += `
       <tr>
@@ -215,7 +215,11 @@ function renderRoomsTable(rooms) {
         <td>${tipoApto}</td>
         <td>$${Number(precioApto).toLocaleString()}</td>
         <td>${nombreCompleto}<br><small style="color: #666;">${contactoP}</small></td>
-        <td><span class="status" style="background-color: ${badgeColor}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold;">${estado}</span></td>
+        <td>
+          <span class="status" style="background-color: ${badgeColor}; color: white; padding: 4px 8px; border-radius: 12px; font-size: 12px; font-weight: bold;">${estado}</span>
+          ${huespedInfo}
+          ${diasInfo}
+        </td>
         <td>${actionButtons}</td>
       </tr>
     `;
@@ -224,7 +228,43 @@ function renderRoomsTable(rooms) {
   applyRolePermissions();
 }
 
-// Función para que la recepción confirme la llegada real del huésped
+async function enviarAvisoCheckIn(event) {
+  event.preventDefault();
+  const roomId = document.getElementById('checkin-room-id').value;
+  const fecha = document.getElementById('checkin-fecha').value;
+  const dias = document.getElementById('checkin-dias').value;
+  const huesped = document.getElementById('checkin-huesped').value;
+  const token = localStorage.getItem('jwt_token');
+
+  try {
+    const res = await fetch(`${API_URL}/habitaciones/${roomId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ 
+        estado: 'Reservado / Por llegar', 
+        proximo_huesped: huesped, 
+        fecha_ingreso: fecha,
+        dias_estancia: Number(dias)
+      })
+    });
+
+    if (res.ok) {
+      alert(`¡Aviso de reserva registrado! (${dias} días). Queda pendiente de aprobación por recepción.`);
+      closeCheckInModal();
+      loadRooms();
+    } else {
+      const data = await res.json();
+      alert('Error: ' + (data.mensaje || 'No se pudo registrar el aviso'));
+    }
+  } catch (err) {
+    console.error('Error:', err);
+    alert('Error de conexión con el servidor');
+  }
+}
+
 async function confirmarIngresoHuesped(id) {
   if (!confirm('¿Confirmar la llegada del huésped y realizar el Check-In oficial?')) return;
   
@@ -240,7 +280,7 @@ async function confirmarIngresoHuesped(id) {
     });
 
     if (res.ok) {
-      alert('¡Check-In registrado con éxito! La habitación ahora está Ocupada.');
+      alert('¡Check-In aprobado con éxito! La habitación ahora está Ocupada.');
       loadRooms();
     } else {
       alert('No se pudo confirmar el Check-In.');
@@ -292,41 +332,6 @@ function closeCheckInModal() {
   const modal = document.getElementById('propietario-checkin-modal');
   modal.classList.add('hidden');
   modal.style.display = 'none';
-}
-
-async function enviarAvisoCheckIn(event) {
-  event.preventDefault();
-  const roomId = document.getElementById('checkin-room-id').value;
-  const fecha = document.getElementById('checkin-fecha').value;
-  const huesped = document.getElementById('checkin-huesped').value;
-  const token = localStorage.getItem('jwt_token');
-
-  try {
-    const res = await fetch(`${API_URL}/habitaciones/${roomId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ 
-        estado: 'Reservado / Por llegar', 
-        proximo_huesped: huesped, 
-        fecha_ingreso: fecha 
-      })
-    });
-
-    if (res.ok) {
-      alert('¡Aviso de check-in enviado con éxito a la administración!');
-      closeCheckInModal();
-      loadRooms();
-    } else {
-      const data = await res.json();
-      alert('Error: ' + (data.mensaje || 'No se pudo registrar el aviso'));
-    }
-  } catch (err) {
-    console.error('Error:', err);
-    alert('Error de conexión con el servidor');
-  }
 }
 
 function toggleSelectAll(source) {
