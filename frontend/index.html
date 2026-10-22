@@ -64,7 +64,7 @@
         <button onclick="showHomePortal()" style="background: rgba(255,255,255,0.08); margin-bottom: 15px; border-left: 3px solid #007bff;">🏠 Inicio / Atajos</button>
         <button onclick="showSection('habitaciones')">🛏️ Habitaciones</button>
         <button onclick="showSection('clientes')">👤 Clientes / Usuarios</button>
-        <button onclick="showSection('reservas')">📅 Reservas</button>
+        <button onclick="showSection('reservas')">📅 Reservas & PDFs</button>
         <button onclick="logout()" class="btn-logout" style="margin-top: 30px;">🚪 Cerrar Sesión</button>
       </nav>
     </aside>
@@ -99,8 +99,8 @@
 
             <div onclick="showSection('reservas')" style="background: #ffffff; border: 2px solid #e2e8f0; border-radius: 10px; padding: 25px 20px; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.borderColor='#28a745'; this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='#e2e8f0'; this.style.transform='none'">
               <div style="font-size: 40px; margin-bottom: 10px;">📅</div>
-              <h4 style="margin: 0 0 8px 0; color: #212529; font-size: 18px;">Reservas</h4>
-              <p style="margin: 0; color: #6c757d; font-size: 12px;">Calendario y control histórico de ocupación</p>
+              <h4 style="margin: 0 0 8px 0; color: #212529; font-size: 18px;">Reservas & PDFs</h4>
+              <p style="margin: 0; color: #6c757d; font-size: 12px;">Historial de estancias y comprobantes oficiales</p>
             </div>
 
             <div onclick="logout()" style="background: #ffffff; border: 2px solid #f8d7da; border-radius: 10px; padding: 25px 20px; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.borderColor='#dc3545'; this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='#f8d7da'; this.style.transform='none'">
@@ -222,8 +222,29 @@
 
       <!-- Módulo Reservas -->
       <section id="sec-reservas" class="module hidden">
-        <h2>Gestión de Reservas</h2>
-        <p>Módulo de reservas en construcción...</p>
+        <header style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <h2 style="margin: 0; color: #1a252f;">Gestión de Reservas & Comprobantes</h2>
+            <p style="color: #6c757d; margin: 5px 0 0 0; font-size: 14px;">Consulta el historial de estancias y descarga los comprobantes oficiales con control de manillas.</p>
+          </div>
+          <button onclick="loadHistorialReservas()" style="background: #007bff; color: white; border: none; padding: 8px 14px; border-radius: 4px; cursor: pointer; font-weight: bold;">🔄 Actualizar Historial</button>
+        </header>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Habitación</th>
+              <th>Huésped / Cliente</th>
+              <th>Fechas de Estancia</th>
+              <th>Estado</th>
+              <th>Total Estancia</th>
+              <th>Comprobante PDF</th>
+            </tr>
+          </thead>
+          <tbody id="historial-list">
+            <tr><td colspan="6" style="text-align: center; padding: 20px; color: #666;">Cargando historial de reservas...</td></tr>
+          </tbody>
+        </table>
       </section>
     </main>
   </div>

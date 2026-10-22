@@ -7,9 +7,10 @@ const authRoutes = require('./routes/authRoutes');
 const roomRoutes = require('./routes/roomRoutes');
 const reservationRoutes = require('./routes/reservationRoutes'); 
 const clientRoutes = require('./routes/clientRoutes'); 
-
-// 1. IMPORTAR LA NUEVA RUTA DE USUARIOS
 const userRoutes = require('./routes/userRoutes'); 
+
+// 1. IMPORTAR LA NUEVA RUTA DE PDF
+const pdfRoutes = require('./routes/pdfRoutes'); 
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -23,9 +24,10 @@ app.use('/api/auth', authRoutes);
 app.use('/api/habitaciones', roomRoutes);
 app.use('/api/reservas', reservationRoutes); 
 app.use('/api/clientes', clientRoutes); 
-
-// 2. MONTAR LA RUTA DE USUARIOS
 app.use('/api/usuarios', userRoutes); 
+
+// 2. MONTAR LA RUTA DE PDF
+app.use('/api/pdf', pdfRoutes); 
 
 // Ruta de prueba inicial
 app.get('/', (req, res) => {

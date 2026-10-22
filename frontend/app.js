@@ -122,12 +122,13 @@ function showSection(section) {
     loadRooms();
   } else if (section === 'clientes') {
     loadUsers();
+  } else if (section === 'reservas') {
+    loadHistorialReservas();
   }
 }
 
 /**
  * Aplica los permisos de visualización en la UI según el rol almacenado.
- * Oculta o muestra elementos del menú y paneles de acuerdo a si es Admin, Recepcionista o Propietario.
  */
 function applyRolePermissions() {
   const role = localStorage.getItem('user_role') || 'propietario';
@@ -760,6 +761,115 @@ async function eliminarHabitacion(id, numero) {
     else alert('No se pudo eliminar');
   } catch {
     alert('Error de conexión');
+  }
+}
+
+// --- MÓDULO DE HISTORIAL DE RESERVAS & COMPROBANTES ---
+async function loadHistorialReservas() {
+  const token = localStorage.getItem('jwt_token');
+  const tbody = document.getElementById('historial-list');
+  if (!tbody) return;
+
+  tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: #666;">Cargando reservas...</td></tr>`;
+
+  try {
+    const res = await fetch(`${API_URL}/reservas`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const reservas = Array.isArray(data) ? data : (data.data || data.reservas || []);
+      renderTablaHistorial(reservas);
+    } else {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: #dc3545;">No se pudo cargar el historial de reservas.</td></tr>`;
+    }
+  } catch (err) {
+    console.error('Error al cargar reservas:', err);
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: #dc3545;">Error de conexión con el servidor.</td></tr>`;
+  }
+}
+
+function renderTablaHistorial(lista) {
+  const tbody = document.getElementById('historial-list');
+  if (!tbody) return;
+
+  tbody.innerHTML = '';
+
+  if (lista.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: #666;">No hay reservas registradas en el sistema.</td></tr>`;
+    return;
+  }
+
+  lista.forEach(item => {
+    const estado = (item.estado || 'pendiente').toLowerCase();
+    let estadoBadge = '<span style="background:#17a2b8; color:white; padding:4px 8px; border-radius:12px; font-weight:bold; font-size:12px;">Pendiente</span>';
+    
+    if (estado === 'ocupada' || estado === 'confirmada') {
+      estadoBadge = '<span style="background:#28a745; color:white; padding:4px 8px; border-radius:12px; font-weight:bold; font-size:12px;">Ocupada</span>';
+    } else if (estado === 'finalizada') {
+      estadoBadge = '<span style="background:#007bff; color:white; padding:4px 8px; border-radius:12px; font-weight:bold; font-size:12px;">Finalizada</span>';
+    } else if (estado === 'cancelada') {
+      estadoBadge = '<span style="background:#dc3545; color:white; padding:4px 8px; border-radius:12px; font-weight:bold; font-size:12px;">Cancelada</span>';
+    }
+
+    const cliente = item.cliente_nombre || item.huesped_nombre || 'Sin cliente asignado';
+    const numeroHabitacion = item.habitacion_numero || item.habitacion_id || 'N/A';
+    const fechaEntrada = item.fecha_entrada ? item.fecha_entrada.split('T')[0] : 'N/A';
+    const fechaSalida = item.fecha_salida ? item.fecha_salida.split('T')[0] : 'N/A';
+    const totalEstancia = Number(item.total || 0).toLocaleString();
+
+    tbody.innerHTML += `
+      <tr>
+        <td><strong>Apto ${numeroHabitacion}</strong></td>
+        <td>${cliente}</td>
+        <td>📅 ${fechaEntrada} ➔ ${fechaSalida}</td>
+        <td>${estadoBadge}</td>
+        <td>$${totalEstancia}</td>
+        <td>
+          <button onclick="descargarComprobantePDF(${item.id})" style="background:#17a2b8; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px;">
+            📄 Descargar PDF
+          </button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+// --- FUNCIÓN PARA DESCARGAR EL COMPROBANTE PDF ---
+async function descargarComprobantePDF(reservaId) {
+  const token = localStorage.getItem('jwt_token');
+
+  if (!token) {
+    alert('Debes iniciar sesión para descargar el comprobante.');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${API_URL}/pdf/comprobante/${reservaId}`, {
+      method: 'GET',
+      headers: { 
+        'Authorization': `Bearer ${token}` 
+      }
+    });
+
+    if (response.ok) {
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Comprobante_Reserva_${reservaId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } else {
+      const errData = await response.json().catch(() => ({}));
+      alert('No se pudo generar el comprobante: ' + (errData.error || 'Error del servidor'));
+    }
+  } catch (err) {
+    console.error('Error al descargar PDF:', err);
+    alert('Error de conexión al intentar descargar el comprobante PDF.');
   }
 }
 
