@@ -596,8 +596,9 @@ async function guardarCheckInOficial(event) {
   const total = Number(document.getElementById('checkin-op-total').value);
 
   try {
-    // 1. Crear / Registrar el Cliente
+    // 1. Registrar / Crear el Cliente obligatoriamente primero
     let cliente_id = null;
+
     const resCliente = await fetch(`${API_URL}/clientes`, {
       method: 'POST',
       headers: {
@@ -607,12 +608,25 @@ async function guardarCheckInOficial(event) {
       body: JSON.stringify({ nombre, documento, telefono })
     });
 
+    const dataCliente = await resCliente.json().catch(() => ({}));
+
     if (resCliente.ok) {
-      const dataCliente = await resCliente.json();
-      cliente_id = dataCliente.id || (dataCliente.cliente && dataCliente.cliente.id) || (dataCliente.data && dataCliente.data.id);
+      // Extraer ID soportando múltiples formatos de respuesta del backend
+      cliente_id = dataCliente.id || 
+                   (dataCliente.cliente && dataCliente.cliente.id) || 
+                   (dataCliente.data && dataCliente.data.id) ||
+                   (dataCliente.insertId);
+    } else {
+      alert('Error al registrar el cliente: ' + (dataCliente.error || dataCliente.mensaje || 'Respuesta no válida del servidor'));
+      return;
     }
 
-    // 2. Crear el registro oficial en la tabla 'reservas'
+    if (!cliente_id) {
+      alert('Error: No se pudo obtener la identificación única del cliente creado.');
+      return;
+    }
+
+    // 2. Crear la reserva asegurando el cliente_id verificado
     const resReserva = await fetch(`${API_URL}/reservas`, {
       method: 'POST',
       headers: {
@@ -621,7 +635,7 @@ async function guardarCheckInOficial(event) {
       },
       body: JSON.stringify({
         habitacion_id,
-        cliente_id: cliente_id || null,
+        cliente_id,
         fecha_entrada,
         fecha_salida,
         total
@@ -629,12 +643,12 @@ async function guardarCheckInOficial(event) {
     });
 
     if (!resReserva.ok) {
-      const errRes = await resReserva.json();
-      alert('Error al registrar reserva: ' + (errRes.error || errRes.mensaje || 'Error desconocido'));
+      const errRes = await resReserva.json().catch(() => ({}));
+      alert('Error al registrar reserva: ' + (errRes.error || errRes.mensaje || 'Error de clave foránea o datos incompletos'));
       return;
     }
 
-    // 3. Actualizar la Habitación a 'Ocupada' y limpiar el próximo huésped
+    // 3. Actualizar la Habitación a 'Ocupada' y limpiar avisos previos
     await fetch(`${API_URL}/habitaciones/${habitacion_id}`, {
       method: 'PUT',
       headers: {
@@ -649,13 +663,13 @@ async function guardarCheckInOficial(event) {
       })
     });
 
-    alert('¡Check-In completado con éxito! Se ha generado la reserva.');
+    alert('¡Check-In completado con éxito! Se ha registrado el cliente y la reserva.');
     closeRecepcionCheckInModal();
     loadRooms();
     loadHistorialReservas();
   } catch (err) {
     console.error('Error al procesar Check-In:', err);
-    alert('Ocurrió un error al procesar el Check-In oficial.');
+    alert('Ocurrió un error de conexión al procesar el Check-In oficial.');
   }
 }
 
