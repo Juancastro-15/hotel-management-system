@@ -595,11 +595,9 @@ async function guardarCheckInOficial(event) {
   const fecha_salida = document.getElementById('checkin-op-salida').value;
   const total = Number(document.getElementById('checkin-op-total').value);
 
-  // Generar un email corporativo provisional basado en el documento si no se captura en el modal
   const email = `huesped_${documento}@marinabay.com`;
 
   try {
-    // 1. Crear u obtener el Cliente de forma segura
     let cliente_id = null;
 
     const resCliente = await fetch(`${API_URL}/clientes`, {
@@ -613,7 +611,7 @@ async function guardarCheckInOficial(event) {
 
     const dataCliente = await resCliente.json().catch(() => ({}));
 
-    if (resCliente.ok) {
+    if (res.ok || resCliente.ok) {
       cliente_id = dataCliente.id || 
                    (dataCliente.cliente && dataCliente.cliente.id) || 
                    (dataCliente.data && dataCliente.data.id);
@@ -627,7 +625,6 @@ async function guardarCheckInOficial(event) {
       return;
     }
 
-    // 2. Crear el registro oficial en la tabla 'reservas'
     const resReserva = await fetch(`${API_URL}/reservas`, {
       method: 'POST',
       headers: {
@@ -639,7 +636,8 @@ async function guardarCheckInOficial(event) {
         cliente_id,
         fecha_entrada,
         fecha_salida,
-        total
+        total,
+        estado: 'ocupada'
       })
     });
 
@@ -649,7 +647,6 @@ async function guardarCheckInOficial(event) {
       return;
     }
 
-    // 3. Actualizar la Habitación a 'Ocupada'
     await fetch(`${API_URL}/habitaciones/${habitacion_id}`, {
       method: 'PUT',
       headers: {
@@ -933,7 +930,7 @@ function renderTablaHistorial(lista) {
         <td>$${totalEstancia}</td>
         <td>
           <button onclick="descargarComprobantePDF(${item.id})" style="background:#17a2b8; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px;">
-            📄 Descargar PDF
+            📄 Ver Comprobante
           </button>
         </td>
       </tr>
@@ -941,12 +938,12 @@ function renderTablaHistorial(lista) {
   });
 }
 
-// --- FUNCIÓN PARA DESCARGAR EL COMPROBANTE PDF ---
+// --- FUNCIÓN PARA PREVISUALIZAR EL COMPROBANTE PDF EN VENTANA MODAL ---
 async function descargarComprobantePDF(reservaId) {
   const token = localStorage.getItem('jwt_token');
 
   if (!token) {
-    alert('Debes iniciar sesión para descargar el comprobante.');
+    alert('Debes iniciar sesión para ver el comprobante.');
     return;
   }
 
@@ -961,21 +958,42 @@ async function descargarComprobantePDF(reservaId) {
     if (response.ok) {
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Comprobante_Reserva_${reservaId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
+
+      // Asignar el PDF al iframe del modal visor
+      const iframe = document.getElementById('pdf-viewer-frame');
+      if (iframe) iframe.src = url;
+
+      // Configurar el botón de descarga dentro de la ventana modal
+      const downloadBtn = document.getElementById('pdf-download-btn');
+      if (downloadBtn) {
+        downloadBtn.href = url;
+        downloadBtn.download = `Comprobante_Reserva_${reservaId}.pdf`;
+      }
+
+      // Abrir la ventana emergente modal
+      const modal = document.getElementById('pdf-modal');
+      if (modal) {
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+      }
     } else {
       const errData = await response.json().catch(() => ({}));
       alert('No se pudo generar el comprobante: ' + (errData.error || 'Error del servidor'));
     }
   } catch (err) {
-    console.error('Error al descargar PDF:', err);
-    alert('Error de conexión al intentar descargar el comprobante PDF.');
+    console.error('Error al cargar PDF:', err);
+    alert('Error de conexión al intentar generar el comprobante PDF.');
   }
+}
+
+function closePdfModal() {
+  const modal = document.getElementById('pdf-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
+  const iframe = document.getElementById('pdf-viewer-frame');
+  if (iframe) iframe.src = '';
 }
 
 function logout() {
