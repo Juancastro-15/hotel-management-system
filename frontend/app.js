@@ -609,11 +609,11 @@ async function guardarCheckInOficial(event) {
 
     if (resCliente.ok) {
       const dataCliente = await resCliente.json();
-      cliente_id = dataCliente.id || (dataCliente.cliente && dataCliente.cliente.id);
+      cliente_id = dataCliente.id || (dataCliente.cliente && dataCliente.cliente.id) || (dataCliente.data && dataCliente.data.id);
     }
 
     // 2. Crear el registro oficial en la tabla 'reservas'
-    await fetch(`${API_URL}/reservas`, {
+    const resReserva = await fetch(`${API_URL}/reservas`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -627,6 +627,12 @@ async function guardarCheckInOficial(event) {
         total
       })
     });
+
+    if (!resReserva.ok) {
+      const errRes = await resReserva.json();
+      alert('Error al registrar reserva: ' + (errRes.error || errRes.mensaje || 'Error desconocido'));
+      return;
+    }
 
     // 3. Actualizar la Habitación a 'Ocupada' y limpiar el próximo huésped
     await fetch(`${API_URL}/habitaciones/${habitacion_id}`, {
@@ -643,9 +649,10 @@ async function guardarCheckInOficial(event) {
       })
     });
 
-    alert('¡Check-In completado con éxito! Se ha generado la reserva y el cliente.');
+    alert('¡Check-In completado con éxito! Se ha generado la reserva.');
     closeRecepcionCheckInModal();
     loadRooms();
+    loadHistorialReservas();
   } catch (err) {
     console.error('Error al procesar Check-In:', err);
     alert('Ocurrió un error al procesar el Check-In oficial.');
@@ -853,7 +860,16 @@ async function loadHistorialReservas() {
 
     if (res.ok) {
       const data = await res.json();
-      const reservas = Array.isArray(data) ? data : (data.data || data.reservas || []);
+      
+      let reservas = [];
+      if (Array.isArray(data)) {
+        reservas = data;
+      } else if (data && Array.isArray(data.data)) {
+        reservas = data.data;
+      } else if (data && Array.isArray(data.reservas)) {
+        reservas = data.reservas;
+      }
+
       renderTablaHistorial(reservas);
     } else {
       tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: #dc3545;">No se pudo cargar el historial de reservas.</td></tr>`;
