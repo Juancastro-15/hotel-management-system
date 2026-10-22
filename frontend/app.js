@@ -543,29 +543,112 @@ async function cancelarPreReserva(id, numeroApto) {
   }
 }
 
-async function confirmarIngresoHuesped(id) {
-  if (!confirm('¿Confirmar la llegada del huésped y realizar el Check-In oficial?')) return;
+// --- FLUJO OPERATIVO DE CHECK-IN RECHAZADO / DIRECTO CON MODAL ---
+function abrirModalRecepcionCheckIn(roomId, huespedPreReserva = '', fIngreso = '', fSalida = '') {
+  document.getElementById('checkin-op-room-id').value = roomId;
+  document.getElementById('checkin-op-nombre').value = huespedPreReserva;
   
+  const hoy = new Date().toISOString().split('T')[0];
+  document.getElementById('checkin-op-entrada').value = fIngreso || hoy;
+  document.getElementById('checkin-op-salida').value = fSalida || hoy;
+  document.getElementById('checkin-op-documento').value = '';
+  document.getElementById('checkin-op-telefono').value = '';
+  document.getElementById('checkin-op-total').value = '';
+
+  const modal = document.getElementById('recepcion-checkin-modal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+  }
+}
+
+function closeRecepcionCheckInModal() {
+  const modal = document.getElementById('recepcion-checkin-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
+}
+
+function realizarCheckIn(id) {
+  abrirModalRecepcionCheckIn(id);
+}
+
+function confirmarIngresoHuesped(id) {
+  const habitacion = allRooms.find(r => r.id === id || r._id === id);
+  const huesped = habitacion ? (habitacion.proximo_huesped || '') : '';
+  const fIngreso = habitacion ? (habitacion.fecha_ingreso || '') : '';
+  const fSalida = habitacion ? (habitacion.fecha_salida || '') : '';
+
+  abrirModalRecepcionCheckIn(id, huesped, fIngreso, fSalida);
+}
+
+async function guardarCheckInOficial(event) {
+  event.preventDefault();
+
   const token = localStorage.getItem('jwt_token');
+  const habitacion_id = document.getElementById('checkin-op-room-id').value;
+  const nombre = document.getElementById('checkin-op-nombre').value;
+  const documento = document.getElementById('checkin-op-documento').value;
+  const telefono = document.getElementById('checkin-op-telefono').value;
+  const fecha_entrada = document.getElementById('checkin-op-entrada').value;
+  const fecha_salida = document.getElementById('checkin-op-salida').value;
+  const total = Number(document.getElementById('checkin-op-total').value);
+
   try {
-    const res = await fetch(`${API_URL}/habitaciones/${id}`, {
-      method: 'PUT',
-      headers: { 
-        'Content-Type': 'application/json', 
-        'Authorization': `Bearer ${token}` 
+    // 1. Crear / Registrar el Cliente
+    let cliente_id = null;
+    const resCliente = await fetch(`${API_URL}/clientes`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ estado: 'Ocupada' })
+      body: JSON.stringify({ nombre, documento, telefono })
     });
 
-    if (res.ok) {
-      alert('¡Check-In aprobado con éxito! La habitación ahora está Ocupada.');
-      loadRooms();
-    } else {
-      alert('No se pudo confirmar el Check-In.');
+    if (resCliente.ok) {
+      const dataCliente = await resCliente.json();
+      cliente_id = dataCliente.id || (dataCliente.cliente && dataCliente.cliente.id);
     }
+
+    // 2. Crear el registro oficial en la tabla 'reservas'
+    await fetch(`${API_URL}/reservas`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        habitacion_id,
+        cliente_id: cliente_id || null,
+        fecha_entrada,
+        fecha_salida,
+        total
+      })
+    });
+
+    // 3. Actualizar la Habitación a 'Ocupada' y limpiar el próximo huésped
+    await fetch(`${API_URL}/habitaciones/${habitacion_id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ 
+        estado: 'Ocupada',
+        proximo_huesped: null,
+        fecha_ingreso: null,
+        fecha_salida: null
+      })
+    });
+
+    alert('¡Check-In completado con éxito! Se ha generado la reserva y el cliente.');
+    closeRecepcionCheckInModal();
+    loadRooms();
   } catch (err) {
-    console.error(err);
-    alert('Error de conexión con el servidor.');
+    console.error('Error al procesar Check-In:', err);
+    alert('Ocurrió un error al procesar el Check-In oficial.');
   }
 }
 
@@ -719,31 +802,22 @@ async function saveRoom(event) {
   }
 }
 
-async function realizarCheckIn(id) {
-  const token = localStorage.getItem('jwt_token');
-  try {
-    const res = await fetch(`${API_URL}/habitaciones/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ estado: 'Ocupada' })
-    });
-    if (res.ok) loadRooms();
-    else alert('No se pudo realizar el Check-In');
-  } catch {
-    alert('Error de conexión');
-  }
-}
-
 async function realizarCheckOut(id) {
   const token = localStorage.getItem('jwt_token');
+  if (!confirm('¿Desea realizar el Check-Out de esta habitación y liberarla?')) return;
+
   try {
     const res = await fetch(`${API_URL}/habitaciones/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ estado: 'Disponible' })
     });
-    if (res.ok) loadRooms();
-    else alert('No se pudo realizar el Check-Out');
+    if (res.ok) {
+      alert('Check-Out realizado con éxito.');
+      loadRooms();
+    } else {
+      alert('No se pudo realizar el Check-Out');
+    }
   } catch {
     alert('Error de conexión');
   }
