@@ -38,7 +38,7 @@ async function registrarNuevoUsuario(event) {
     const data = await res.json();
 
     if (res.ok) {
-      alert('¡Cuenta de propietario creada con éxito! Ahora puedes iniciar sesión.');
+      alert('¡Cuenta creada con éxito! Ahora puedes iniciar sesión.');
       document.getElementById('register-form').reset();
       toggleAuthView('login');
     } else {
@@ -125,13 +125,23 @@ function showSection(section) {
   }
 }
 
+/**
+ * Aplica los permisos de visualización en la UI según el rol almacenado.
+ * Oculta o muestra elementos del menú y paneles de acuerdo a si es Admin, Recepcionista o Propietario.
+ */
 function applyRolePermissions() {
   const role = localStorage.getItem('user_role') || 'propietario';
   const isAdmin = role === 'admin' || role === 'administrador';
   const isOperador = role === 'recepcionista' || role === 'operador';
 
+  // Ocultar o mostrar elementos exclusivos de administrador en el DOM
   document.querySelectorAll('.admin-only').forEach(el => {
     el.style.display = isAdmin ? '' : 'none';
+  });
+
+  // Ocultar o mostrar elementos exclusivos para personal operativo (Recepcionista / Admin)
+  document.querySelectorAll('.operador-only').forEach(el => {
+    el.style.display = (isAdmin || isOperador) ? '' : 'none';
   });
 
   const badgeText = isAdmin ? '👑 Administrador' : (isOperador ? '🛎️ Recepcionista / Operador' : '🏠 Propietario');
@@ -169,7 +179,7 @@ async function loadUsers() {
     return;
   }
 
-  // Si ES Administrador, cargar la lista de todos los usuarios
+  // Si ES Administrador, cargar la lista de todos los usuarios del sistema
   document.getElementById('admin-users-view').style.display = 'block';
   document.getElementById('non-admin-profile-view').style.display = 'none';
   document.getElementById('users-module-title').innerText = 'Gestión de Clientes y Usuarios';
@@ -339,7 +349,7 @@ async function actualizarMiPerfil(event) {
   alert('¡Perfil actualizado con éxito!');
 }
 
-// --- MÓDULO DE HABITACIONES ---
+// --- MÓDULO DE HABITACIONES / PROPIEDADES ---
 
 async function loadRooms() {
   const token = localStorage.getItem('jwt_token');
@@ -355,6 +365,7 @@ async function loadRooms() {
 
     let rooms = Array.isArray(data) ? data : (data.habitaciones || data.data || []);
 
+    // Si es propietario, restringir la vista únicamente a sus propiedades asociadas
     if (role === 'propietario') {
       rooms = rooms.filter(room => {
         const idCoincide = userId && String(room.propietario_id || room.user_id || room.usuario_id) === String(userId);
@@ -412,6 +423,7 @@ function renderRoomsTable(rooms) {
     let actionButtons = '';
 
     if (!isPropietario) {
+      // Opciones operativas para recepcionista / admin
       if (estadoLower === 'disponible') {
         actionButtons += `<button class="btn-checkin" onclick="realizarCheckIn(${roomId})">Check-In Directo</button> `;
       } 
@@ -422,6 +434,7 @@ function renderRoomsTable(rooms) {
         actionButtons += `<button class="btn-checkout" onclick="realizarCheckOut(${roomId})">Check-Out</button> `;
       }
     } else {
+      // Opciones para el propietario (informar o cancelar pre-reserva)
       if (estadoLower === 'disponible') {
         actionButtons += `<button onclick="openCheckInModal(${roomId}, '${numeroApto}')" style="background:#007bff; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; color: #fff; font-weight: bold;">📅 Informar Reserva</button>`;
       } else if (estadoLower.includes('reservado') || estadoLower.includes('por llegar')) {
@@ -431,6 +444,7 @@ function renderRoomsTable(rooms) {
       }
     }
 
+    // Botones exclusivos de gestión para el Administrador
     if (isAdmin) {
       actionButtons += `<button onclick="openEditRoomModal(${roomId}, '${numeroApto}', '${tipoApto}', ${precioApto}, '${nombresP}', '${apellidosP}', '${emailP}', '${celularP}')" style="background:#ffc107; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; color: #000; font-weight: bold; margin-left: 4px; margin-right: 4px;">Editar</button>`;
       actionButtons += `<button onclick="eliminarHabitacion(${roomId}, '${numeroApto}')" style="background:#dc3545; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; color: #fff; font-weight: bold;">Eliminar</button>`;
