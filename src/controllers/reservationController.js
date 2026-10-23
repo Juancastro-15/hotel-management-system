@@ -63,7 +63,7 @@ const obtenerReservas = async (req, res) => {
 // Crear una nueva reserva vinculando un cliente y validando disponibilidad
 const crearReserva = async (req, res) => {
     try {
-        const { cliente_id, habitacion_id, fecha_entrada, fecha_salida } = req.body;
+        const { cliente_id, habitacion_id, fecha_entrada, fecha_salida, estado: estadoReq, total: totalReq } = req.body;
         const usuario_id = req.usuario.id;
 
         const clienteQuery = await db.query('SELECT * FROM clientes WHERE id = $1', [cliente_id]);
@@ -101,15 +101,19 @@ const crearReserva = async (req, res) => {
         }
 
         const precioNoche = parseFloat(habitacion.precio_noche || habitacion.precio || 0);
-        const total = diffDays * precioNoche;
+        const total = totalReq !== undefined && totalReq !== null && totalReq !== '' ? parseFloat(totalReq) : (diffDays * precioNoche);
+        
+        // Estado que viene de la petición o 'ocupada' por defecto si es check-in oficial
+        const estadoFinal = estadoReq || 'ocupada';
 
         const nuevaReserva = await db.query(
             `INSERT INTO reservas (usuario_id, cliente_id, habitacion_id, fecha_entrada, fecha_salida, estado, total)
-             VALUES ($1, $2, $3, $4, $5, 'pendiente', $6) RETURNING *`,
-            [usuario_id, cliente_id, habitacion_id, fecha_entrada, fecha_salida, total]
+             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+            [usuario_id, cliente_id, habitacion_id, fecha_entrada, fecha_salida, estadoFinal, total]
         );
 
-        await db.query('UPDATE habitaciones SET estado = $1 WHERE id = $2', ['Reservado / Por llegar', habitacion_id]);
+        const estadoHabitacion = (estadoFinal === 'ocupada' || estadoFinal === 'confirmada') ? 'Ocupada' : 'Reservado / Por llegar';
+        await db.query('UPDATE habitaciones SET estado = $1 WHERE id = $2', [estadoHabitacion, habitacion_id]);
 
         res.status(201).json({
             mensaje: '¡Reserva creada con éxito!',
