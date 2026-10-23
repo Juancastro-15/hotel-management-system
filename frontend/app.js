@@ -553,6 +553,10 @@ function abrirModalRecepcionCheckIn(roomId, huespedPreReserva = '', fIngreso = '
   document.getElementById('checkin-op-salida').value = fSalida || hoy;
   document.getElementById('checkin-op-documento').value = '';
   document.getElementById('checkin-op-telefono').value = '';
+  document.getElementById('checkin-op-boleta').value = '';
+  document.getElementById('checkin-op-huespedes').value = '1';
+  document.getElementById('checkin-op-placa').value = '';
+  document.getElementById('checkin-op-obs').value = '';
   document.getElementById('checkin-op-total').value = '';
 
   const modal = document.getElementById('recepcion-checkin-modal');
