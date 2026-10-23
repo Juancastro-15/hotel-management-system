@@ -611,7 +611,8 @@ async function guardarCheckInOficial(event) {
 
     const dataCliente = await resCliente.json().catch(() => ({}));
 
-    if (res.ok || resCliente.ok) {
+    // CORRECCIÓN: Únicamente usar resCliente.ok
+    if (resCliente.ok) {
       cliente_id = dataCliente.id || 
                    (dataCliente.cliente && dataCliente.cliente.id) || 
                    (dataCliente.data && dataCliente.data.id);
