@@ -1058,9 +1058,46 @@ function closePdfModal() {
 
 // --- MÓDULO DE INVENTARIO ---
 
+async function cargarSelectHabitaciones() {
+  const select = document.getElementById('input-habitacion-id');
+  if (!select) return;
+
+  const token = localStorage.getItem('jwt_token');
+  try {
+    const res = await fetch(`${API_URL}/habitaciones`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (res.ok) {
+      const data = await res.json();
+      const rooms = Array.isArray(data) ? data : (data.habitaciones || data.data || []);
+      
+      select.innerHTML = '<option value="">Seleccione un apartamento...</option>';
+      
+      if (rooms.length === 0) {
+        select.innerHTML = '<option value="">No hay habitaciones registradas</option>';
+        return;
+      }
+
+      rooms.forEach(r => {
+        const rId = r.id || r._id;
+        const rNum = r.numero || r.room_number || 'S/N';
+        const rTipo = r.tipo || r.type || '';
+        select.innerHTML += `<option value="${rId}">Apto ${rNum} (${rTipo})</option>`;
+      });
+    } else {
+      select.innerHTML = '<option value="">Error al cargar habitaciones</option>';
+    }
+  } catch (err) {
+    console.error('Error al cargar habitaciones para el inventario:', err);
+    select.innerHTML = '<option value="">Error de conexión</option>';
+  }
+}
+
 async function cargarInventario() {
   cargarBoletas();
   cargarManillas();
+  cargarSelectHabitaciones();
 }
 
 async function cargarBoletas() {
@@ -1149,6 +1186,12 @@ async function registrarBoleta(event) {
   event.preventDefault();
   const numero_boleta = document.getElementById('input-num-boleta').value;
   const habitacion_id = document.getElementById('input-habitacion-id').value;
+
+  if (!habitacion_id) {
+    alert('Por favor selecciona una habitación o apartamento.');
+    return;
+  }
+
   const token = localStorage.getItem('jwt_token');
 
   try {
