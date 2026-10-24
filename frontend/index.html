@@ -65,6 +65,7 @@
         <button onclick="showSection('habitaciones')">🛏️ Habitaciones</button>
         <button onclick="showSection('clientes')">👤 Clientes / Usuarios</button>
         <button onclick="showSection('reservas')">📅 Reservas & PDFs</button>
+        <button class="admin-only" onclick="showSection('inventario')">📦 Control de Inventario</button>
         <button onclick="logout()" class="btn-logout" style="margin-top: 30px;">🚪 Cerrar Sesión</button>
       </nav>
     </aside>
@@ -101,6 +102,12 @@
               <div style="font-size: 40px; margin-bottom: 10px;">📅</div>
               <h4 style="margin: 0 0 8px 0; color: #212529; font-size: 18px;">Reservas & PDFs</h4>
               <p style="margin: 0; color: #6c757d; font-size: 12px;">Historial de estancias y comprobantes oficiales</p>
+            </div>
+
+            <div class="admin-only" onclick="showSection('inventario')" style="background: #ffffff; border: 2px solid #e2e8f0; border-radius: 10px; padding: 25px 20px; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.borderColor='#6f42c1'; this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='#e2e8f0'; this.style.transform='none'">
+              <div style="font-size: 40px; margin-bottom: 10px;">📦</div>
+              <h4 style="margin: 0 0 8px 0; color: #212529; font-size: 18px;">Inventario</h4>
+              <p style="margin: 0; color: #6c757d; font-size: 12px;">Registro de boletas de acceso y manillas generales</p>
             </div>
 
             <div onclick="logout()" style="background: #ffffff; border: 2px solid #f8d7da; border-radius: 10px; padding: 25px 20px; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.borderColor='#dc3545'; this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='#f8d7da'; this.style.transform='none'">
@@ -181,8 +188,11 @@
 
         <!-- Vista para Administradores: Tabla General de Usuarios -->
         <div id="admin-users-view" class="admin-only">
-          <div style="background: white; padding: 12px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px;">
-            <input type="text" id="search-users-input" onkeyup="filtrarUsuarios()" placeholder="🔍 Buscar usuario por nombre, email o rol..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+          <div style="background: white; padding: 12px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+            <input type="text" id="search-users-input" onkeyup="filtrarUsuarios()" placeholder="🔍 Buscar usuario por nombre, email o rol..." style="flex: 1; min-width: 200px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box;">
+            
+            <!-- Botón para Crear Usuario como Admin -->
+            <button onclick="openCreateUserModal()" style="background: #28a745; color: white; border: none; padding: 8px 14px; border-radius: 4px; cursor: pointer; font-weight: bold;">+ Nuevo Usuario</button>
           </div>
 
           <table class="data-table">
@@ -246,6 +256,89 @@
           </tbody>
         </table>
       </section>
+
+      <!-- MÓDULO DE INVENTARIO (Boletas y Manillas - Solo Admin) -->
+      <section id="sec-inventario" class="module hidden admin-only">
+        <header style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <h2 style="margin: 0; color: #1a252f;">Gestión de Inventario y Accesos</h2>
+            <p style="color: #6c757d; margin: 5px 0 0 0; font-size: 14px;">Registra y supervisa las boletas autorizadas y el inventario de manillas.</p>
+          </div>
+          <button onclick="cargarInventario()" style="background: #007bff; color: white; border: none; padding: 8px 14px; border-radius: 4px; cursor: pointer; font-weight: bold;">🔄 Actualizar Inventario</button>
+        </header>
+
+        <!-- FORMULARIOS DE REGISTRO -->
+        <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 30px;">
+          
+          <!-- Formulario para Registrar Boleta -->
+          <div style="background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); flex: 1; min-width: 300px; border-top: 4px solid #28a745;">
+            <h3 style="margin-top: 0; color: #333; font-size: 16px;">🎟️ Registrar Boleta por Apartamento</h3>
+            <form id="form-boleta" onsubmit="registrarBoleta(event)">
+              <div style="margin-bottom: 12px;">
+                <label style="display: block; font-size: 12px; font-weight: bold; color: #555; margin-bottom: 5px;">Número de Boleta:</label>
+                <input type="text" id="input-num-boleta" placeholder="Ej. BOL-1501-01" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+              </div>
+              <div style="margin-bottom: 15px;">
+                <label style="display: block; font-size: 12px; font-weight: bold; color: #555; margin-bottom: 5px;">ID del Apartamento / Habitación:</label>
+                <input type="number" id="input-habitacion-id" placeholder="Ej. 1" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+              </div>
+              <button type="submit" style="background: #28a745; color: white; border: none; padding: 10px 15px; cursor: pointer; border-radius: 4px; font-weight: bold; width: 100%;">💾 Guardar Boleta</button>
+            </form>
+          </div>
+
+          <!-- Formulario para Registrar Manilla -->
+          <div style="background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); flex: 1; min-width: 300px; border-top: 4px solid #007bff;">
+            <h3 style="margin-top: 0; color: #333; font-size: 16px;">📿 Registrar Manilla General</h3>
+            <form id="form-manilla" onsubmit="registrarManilla(event)">
+              <div style="margin-bottom: 15px;">
+                <label style="display: block; font-size: 12px; font-weight: bold; color: #555; margin-bottom: 5px;">Código de Manilla:</label>
+                <input type="text" id="input-codigo-manilla" placeholder="Ej. MAN-GEN-001" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+              </div>
+              <button type="submit" style="background: #007bff; color: white; border: none; padding: 10px 15px; cursor: pointer; border-radius: 4px; font-weight: bold; width: 100%;">💾 Guardar Manilla en Inventario</button>
+            </form>
+          </div>
+
+        </div>
+
+        <!-- TABLAS DE INVENTARIO -->
+        <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+          
+          <!-- Tabla Boletas -->
+          <div style="flex: 1; min-width: 300px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+            <h4 style="margin-top: 0; color: #1a252f;">🎟️ Boletas Registradas</h4>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th># Boleta</th>
+                  <th>Apto / Habitación</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody id="lista-boletas">
+                <tr><td colspan="3" style="text-align: center; color: #666;">Cargando boletas...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Tabla Manillas -->
+          <div style="flex: 1; min-width: 300px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+            <h4 style="margin-top: 0; color: #1a252f;">📿 Manillas Registradas</h4>
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Código Manilla</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody id="lista-manillas">
+                <tr><td colspan="2" style="text-align: center; color: #666;">Cargando manillas...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+        </div>
+      </section>
+
     </main>
   </div>
 
@@ -308,6 +401,45 @@
           <button type="button" onclick="closeRoomModal()" style="background: #6c757d; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">Cancelar</button>
           <button type="submit" style="background: #28a745; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Guardar Cambios</button>
         </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Crear Nuevo Usuario (Solo Admin) -->
+  <div id="create-user-modal" class="modal hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: center; z-index: 1000;">
+    <div class="modal-content" style="background: white; padding: 25px; border-radius: 8px; width: 380px;">
+      <h3 style="margin-top: 0; color: #333;">Crear Nuevo Usuario</h3>
+      <form id="create-user-form" onsubmit="guardarNuevoUsuarioAdmin(event)">
+        
+        <div style="margin-bottom: 10px;">
+          <label style="font-size: 13px; font-weight: bold;">Nombre Completo:</label><br>
+          <input type="text" id="create-user-nombre" required placeholder="Ej. Carlos Mendoza" style="width: 100%; padding: 7px; margin-top: 3px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+
+        <div style="margin-bottom: 10px;">
+          <label style="font-size: 13px; font-weight: bold;">Correo Electrónico:</label><br>
+          <input type="email" id="create-user-email" required placeholder="correo@ejemplo.com" style="width: 100%; padding: 7px; margin-top: 3px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+
+        <div style="margin-bottom: 10px;">
+          <label style="font-size: 13px; font-weight: bold;">Contraseña Inicial:</label><br>
+          <input type="password" id="create-user-password" required placeholder="Contraseña de acceso" style="width: 100%; padding: 7px; margin-top: 3px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+
+        <div style="margin-bottom: 15px;">
+          <label style="font-size: 13px; font-weight: bold; color: #6f42c1;">Rol de Sistema:</label><br>
+          <select id="create-user-rol" style="width: 100%; padding: 8px; margin-top: 3px; font-weight: bold; border: 1px solid #ccc; border-radius: 4px;">
+            <option value="propietario">🏠 Propietario</option>
+            <option value="recepcionista">🛎️ Recepcionista / Operador</option>
+            <option value="admin">👑 Administrador</option>
+          </select>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" onclick="closeCreateUserModal()" style="background: #6c757d; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">Cancelar</button>
+          <button type="submit" style="background: #28a745; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Crear Usuario</button>
+        </div>
+
       </form>
     </div>
   </div>
@@ -381,7 +513,7 @@
     </div>
   </div>
 
-  <!-- Modal Check-In Operativo Recepción (Inspirado en la Interfaz Profesional) -->
+  <!-- Modal Check-In Operativo Recepción -->
   <div id="recepcion-checkin-modal" class="modal hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 2000;">
     <div class="modal-content" style="background: white; padding: 25px; border-radius: 10px; width: 950px; max-width: 95vw; max-height: 95vh; overflow-y: auto; box-shadow: 0 5px 25px rgba(0,0,0,0.3);">
       

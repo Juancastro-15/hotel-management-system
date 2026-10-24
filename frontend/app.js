@@ -124,6 +124,8 @@ function showSection(section) {
     loadUsers();
   } else if (section === 'reservas') {
     loadHistorialReservas();
+  } else if (section === 'inventario') {
+    cargarInventario();
   }
 }
 
@@ -248,6 +250,61 @@ function filtrarUsuarios() {
   renderUsersTable(filtered);
 }
 
+// --- CREAR USUARIO DESDE EL PANEL ADMIN ---
+function openCreateUserModal() {
+  const form = document.getElementById('create-user-form');
+  if (form) form.reset();
+  
+  const modal = document.getElementById('create-user-modal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+  }
+}
+
+function closeCreateUserModal() {
+  const modal = document.getElementById('create-user-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
+}
+
+async function guardarNuevoUsuarioAdmin(event) {
+  event.preventDefault();
+  
+  const nombre = document.getElementById('create-user-nombre').value;
+  const email = document.getElementById('create-user-email').value;
+  const password = document.getElementById('create-user-password').value;
+  const rol = document.getElementById('create-user-rol').value;
+  const token = localStorage.getItem('jwt_token');
+
+  try {
+    const res = await fetch(`${API_URL}/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ nombre, email, password, rol })
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      alert('¡Usuario creado con éxito!');
+      closeCreateUserModal();
+      loadUsers();
+    } else {
+      alert('Error al crear usuario: ' + (data.mensaje || data.error || 'No se pudo completar la operación'));
+    }
+  } catch (err) {
+    console.error('Error al crear usuario:', err);
+    alert('Error de conexión con el servidor.');
+  }
+}
+
+// --- EDITAR Y ELIMINAR USUARIOS ---
 function openUserModal(id, nombre, email, rol) {
   document.getElementById('edit-user-id').value = id;
   document.getElementById('edit-user-nombre').value = nombre;
@@ -543,7 +600,7 @@ async function cancelarPreReserva(id, numeroApto) {
   }
 }
 
-// --- FLUJO OPERATIVO DE CHECK-IN RECHAZADO / DIRECTO CON MODAL ---
+// --- FLUJO OPERATIVO DE CHECK-IN CON MODAL ---
 function abrirModalRecepcionCheckIn(roomId, huespedPreReserva = '', fIngreso = '', fSalida = '') {
   document.getElementById('checkin-op-room-id').value = roomId;
   document.getElementById('checkin-op-nombre').value = huespedPreReserva;
@@ -599,6 +656,7 @@ async function guardarCheckInOficial(event) {
   const fecha_salida = document.getElementById('checkin-op-salida').value;
   const total = Number(document.getElementById('checkin-op-total').value);
 
+  const boleta = document.getElementById('checkin-op-boleta').value;
   const email = `huesped_${documento}@marinabay.com`;
 
   try {
@@ -615,7 +673,6 @@ async function guardarCheckInOficial(event) {
 
     const dataCliente = await resCliente.json().catch(() => ({}));
 
-    // CORRECCIÓN: Únicamente usar resCliente.ok
     if (resCliente.ok) {
       cliente_id = dataCliente.id || 
                    (dataCliente.cliente && dataCliente.cliente.id) || 
@@ -642,7 +699,8 @@ async function guardarCheckInOficial(event) {
         fecha_entrada,
         fecha_salida,
         total,
-        estado: 'ocupada'
+        estado: 'ocupada',
+        boleta
       })
     });
 
@@ -666,7 +724,7 @@ async function guardarCheckInOficial(event) {
       })
     });
 
-    alert('¡Check-In completado con éxito! Reserva generada correctamente.');
+    alert('¡Check-In completado con éxito! Boleta validada y reserva generada.');
     closeRecepcionCheckInModal();
     loadRooms();
     loadHistorialReservas();
@@ -943,7 +1001,7 @@ function renderTablaHistorial(lista) {
   });
 }
 
-// --- FUNCIÓN PARA PREVISUALIZAR EL COMPROBANTE PDF EN VENTANA MODAL ---
+// --- FUNCIÓN PARA PREVISUALIZAR EL COMPROBANTE PDF ---
 async function descargarComprobantePDF(reservaId) {
   const token = localStorage.getItem('jwt_token');
 
@@ -964,18 +1022,15 @@ async function descargarComprobantePDF(reservaId) {
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
 
-      // Asignar el PDF al iframe del modal visor
       const iframe = document.getElementById('pdf-viewer-frame');
       if (iframe) iframe.src = url;
 
-      // Configurar el botón de descarga dentro de la ventana modal
       const downloadBtn = document.getElementById('pdf-download-btn');
       if (downloadBtn) {
         downloadBtn.href = url;
         downloadBtn.download = `Comprobante_Reserva_${reservaId}.pdf`;
       }
 
-      // Abrir la ventana emergente modal
       const modal = document.getElementById('pdf-modal');
       if (modal) {
         modal.classList.remove('hidden');
@@ -999,6 +1054,154 @@ function closePdfModal() {
   }
   const iframe = document.getElementById('pdf-viewer-frame');
   if (iframe) iframe.src = '';
+}
+
+// --- MÓDULO DE INVENTARIO ---
+
+async function cargarInventario() {
+  cargarBoletas();
+  cargarManillas();
+}
+
+async function cargarBoletas() {
+  const token = localStorage.getItem('jwt_token');
+  const tbody = document.getElementById('lista-boletas');
+  if (!tbody) return;
+
+  try {
+    const res = await fetch(`${API_URL}/inventario/boletas`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      tbody.innerHTML = '';
+
+      if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #666; padding: 15px;">No hay boletas registradas.</td></tr>`;
+        return;
+      }
+
+      data.forEach(b => {
+        const estadoBadge = b.usada 
+          ? '<span style="background:#dc3545; color:white; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold;">Usada</span>'
+          : '<span style="background:#28a745; color:white; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold;">Disponible</span>';
+        
+        const habitacionTexto = b.numero_habitacion ? `Apto ${b.numero_habitacion}` : `ID: ${b.habitacion_id}`;
+
+        tbody.innerHTML += `
+          <tr>
+            <td><strong>${b.numero_boleta}</strong></td>
+            <td>${habitacionTexto}</td>
+            <td>${estadoBadge}</td>
+          </tr>
+        `;
+      });
+    }
+  } catch (err) {
+    console.error('Error al cargar boletas:', err);
+    tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: red;">Error al cargar datos.</td></tr>`;
+  }
+}
+
+async function cargarManillas() {
+  const token = localStorage.getItem('jwt_token');
+  const tbody = document.getElementById('lista-manillas');
+  if (!tbody) return;
+
+  try {
+    const res = await fetch(`${API_URL}/inventario/manillas`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      tbody.innerHTML = '';
+
+      if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="2" style="text-align: center; color: #666; padding: 15px;">No hay manillas registradas.</td></tr>`;
+        return;
+      }
+
+      data.forEach(m => {
+        const estadoLower = (m.estado || 'libre').toLowerCase();
+        let estadoBadge = '<span style="background:#28a745; color:white; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold;">Libre</span>';
+        
+        if (estadoLower === 'asignada' || estadoLower === 'ocupada') {
+          estadoBadge = '<span style="background:#17a2b8; color:white; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold;">Asignada</span>';
+        }
+
+        tbody.innerHTML += `
+          <tr>
+            <td><strong>${m.codigo_manilla}</strong></td>
+            <td>${estadoBadge}</td>
+          </tr>
+        `;
+      });
+    }
+  } catch (err) {
+    console.error('Error al cargar manillas:', err);
+    tbody.innerHTML = `<tr><td colspan="2" style="text-align: center; color: red;">Error al cargar datos.</td></tr>`;
+  }
+}
+
+async function registrarBoleta(event) {
+  event.preventDefault();
+  const numero_boleta = document.getElementById('input-num-boleta').value;
+  const habitacion_id = document.getElementById('input-habitacion-id').value;
+  const token = localStorage.getItem('jwt_token');
+
+  try {
+    const res = await fetch(`${API_URL}/inventario/boletas`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ numero_boleta, habitacion_id })
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      alert(data.mensaje || '¡Boleta registrada con éxito!');
+      document.getElementById('form-boleta').reset();
+      cargarBoletas();
+    } else {
+      alert('Error: ' + (data.error || 'No se pudo registrar la boleta'));
+    }
+  } catch (err) {
+    console.error('Error al registrar boleta:', err);
+    alert('Error de conexión con el servidor.');
+  }
+}
+
+async function registrarManilla(event) {
+  event.preventDefault();
+  const codigo_manilla = document.getElementById('input-codigo-manilla').value;
+  const token = localStorage.getItem('jwt_token');
+
+  try {
+    const res = await fetch(`${API_URL}/inventario/manillas`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ codigo_manilla })
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      alert(data.mensaje || '¡Manilla registrada con éxito!');
+      document.getElementById('form-manilla').reset();
+      cargarManillas();
+    } else {
+      alert('Error: ' + (data.error || 'No se pudo registrar la manilla'));
+    }
+  } catch (err) {
+    console.error('Error al registrar manilla:', err);
+    alert('Error de conexión con el servidor.');
+  }
 }
 
 function logout() {
