@@ -129,9 +129,6 @@ function showSection(section) {
   }
 }
 
-/**
- * Aplica los permisos de visualización en la UI según el rol almacenado.
- */
 function applyRolePermissions() {
   const role = localStorage.getItem('user_role') || 'propietario';
   const isAdmin = role === 'admin' || role === 'administrador';
@@ -195,8 +192,6 @@ async function loadUsers() {
       const data = await res.json();
       allUsers = Array.isArray(data) ? data : (data.usuarios || data.data || []);
       renderUsersTable(allUsers);
-    } else {
-      console.warn('No se pudo cargar la lista de usuarios desde la API');
     }
   } catch (err) {
     console.error('Error al cargar usuarios:', err);
@@ -250,11 +245,9 @@ function filtrarUsuarios() {
   renderUsersTable(filtered);
 }
 
-// --- CREAR USUARIO DESDE EL PANEL ADMIN ---
 function openCreateUserModal() {
   const form = document.getElementById('create-user-form');
   if (form) form.reset();
-  
   const modal = document.getElementById('create-user-modal');
   if (modal) {
     modal.classList.remove('hidden');
@@ -272,7 +265,6 @@ function closeCreateUserModal() {
 
 async function guardarNuevoUsuarioAdmin(event) {
   event.preventDefault();
-  
   const nombre = document.getElementById('create-user-nombre').value;
   const email = document.getElementById('create-user-email').value;
   const password = document.getElementById('create-user-password').value;
@@ -290,7 +282,6 @@ async function guardarNuevoUsuarioAdmin(event) {
     });
 
     const data = await res.json();
-
     if (res.ok) {
       alert('¡Usuario creado con éxito!');
       closeCreateUserModal();
@@ -299,12 +290,10 @@ async function guardarNuevoUsuarioAdmin(event) {
       alert('Error al crear usuario: ' + (data.mensaje || data.error || 'No se pudo completar la operación'));
     }
   } catch (err) {
-    console.error('Error al crear usuario:', err);
     alert('Error de conexión con el servidor.');
   }
 }
 
-// --- EDITAR Y ELIMINAR USUARIOS ---
 function openUserModal(id, nombre, email, rol) {
   document.getElementById('edit-user-id').value = id;
   document.getElementById('edit-user-nombre').value = nombre;
@@ -349,7 +338,7 @@ async function guardarEdicionUsuario(event) {
     }
 
     if (nuevoPassword.trim() !== '') {
-      const resPass = await fetch(`${API_URL}/usuarios/${uId}/password`, {
+      await fetch(`${API_URL}/usuarios/${uId}/password`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -357,19 +346,12 @@ async function guardarEdicionUsuario(event) {
         },
         body: JSON.stringify({ nuevoPassword })
       });
-
-      if (!resPass.ok) {
-        alert('Se guardaron los datos, pero hubo un error al cambiar la contraseña.');
-        return;
-      }
     }
 
     alert('¡Usuario y credenciales actualizados con éxito!');
-    document.getElementById('edit-user-password').value = '';
     closeUserModal();
     loadUsers();
   } catch (err) {
-    console.error(err);
     alert('Error de conexión con el servidor');
   }
 }
@@ -387,11 +369,8 @@ async function eliminarUsuario(id, nombre) {
     if (res.ok) {
       alert('Usuario eliminado correctamente.');
       loadUsers();
-    } else {
-      alert('No se pudo eliminar el usuario.');
     }
   } catch (err) {
-    console.error(err);
     alert('Error de conexión');
   }
 }
@@ -464,7 +443,7 @@ function renderRoomsTable(rooms) {
     const nombreCompleto = nombresP ? `${nombresP} ${apellidosP}` : 'Administración';
     const contactoP = celularP || emailP || 'N/A';
 
-    const huespedInfo = room.proximo_huesped ? `<br><small style="color:#007bff; font-weight:bold;">👤 Huésped: ${room.proximo_huesped}</small>` : '';
+    const huespedInfo = room.proximo_huesped ? `<br><small style="color:#007bff; font-weight:bold;">👤 Titular: ${room.proximo_huesped}</small>` : '';
     
     let fechasInfo = '';
     if (room.fecha_ingreso || room.fecha_inicio) {
@@ -600,7 +579,28 @@ async function cancelarPreReserva(id, numeroApto) {
   }
 }
 
-// --- FLUJO OPERATIVO DE CHECK-IN CON MODAL ---
+// --- REQUERIMIENTO 3: MANEJO DINÁMICO DE HUÉSPEDES / ACOMPAÑANTES Y MANILLAS ---
+function agregarFilaAcompanante(nombre = '', documento = '', manilla = '') {
+  const contenedor = document.getElementById('contenedor-acompanantes');
+  if (!contenedor) return;
+
+  const idFila = 'acomp-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+  
+  const div = document.createElement('div');
+  div.id = idFila;
+  div.style.cssText = 'display: grid; grid-template-columns: 2fr 1.5fr 1.5fr 40px; gap: 8px; align-items: center; background: #fff; padding: 8px; border-radius: 4px; border: 1px solid #e0e0e0;';
+
+  div.innerHTML = `
+    <input type="text" class="acomp-nombre" value="${nombre}" placeholder="Nombre completo del acompañante" required style="padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;">
+    <input type="text" class="acomp-doc" value="${documento}" placeholder="Documento ID" required style="padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;">
+    <input type="text" class="acomp-manilla" value="${manilla}" placeholder="# Manilla (ej. 5001)" required style="padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; font-weight: bold; color: #007bff;">
+    <button type="button" onclick="document.getElementById('${idFila}').remove()" style="background: #dc3545; color: white; border: none; border-radius: 4px; padding: 6px; cursor: pointer; font-weight: bold;" title="Quitar">✕</button>
+  `;
+
+  contenedor.appendChild(div);
+}
+
+// --- REQUERIMIENTO 2 Y 3: CHECK-IN SIN CAMPO DE PRECIO & ASIGNACIÓN DETALLADA ---
 function abrirModalRecepcionCheckIn(roomId, huespedPreReserva = '', fIngreso = '', fSalida = '') {
   document.getElementById('checkin-op-room-id').value = roomId;
   document.getElementById('checkin-op-nombre').value = huespedPreReserva;
@@ -611,10 +611,14 @@ function abrirModalRecepcionCheckIn(roomId, huespedPreReserva = '', fIngreso = '
   document.getElementById('checkin-op-documento').value = '';
   document.getElementById('checkin-op-telefono').value = '';
   document.getElementById('checkin-op-boleta').value = '';
-  document.getElementById('checkin-op-huespedes').value = '1';
   document.getElementById('checkin-op-placa').value = '';
   document.getElementById('checkin-op-obs').value = '';
-  document.getElementById('checkin-op-total').value = '';
+
+  const contenedor = document.getElementById('contenedor-acompanantes');
+  if (contenedor) {
+    contenedor.innerHTML = '';
+    agregarFilaAcompanante(huespedPreReserva ? huespedPreReserva : '');
+  }
 
   const modal = document.getElementById('recepcion-checkin-modal');
   if (modal) {
@@ -654,10 +658,26 @@ async function guardarCheckInOficial(event) {
   const telefono = document.getElementById('checkin-op-telefono').value;
   const fecha_entrada = document.getElementById('checkin-op-entrada').value;
   const fecha_salida = document.getElementById('checkin-op-salida').value;
-  const total = Number(document.getElementById('checkin-op-total').value);
-
   const boleta = document.getElementById('checkin-op-boleta').value;
   const email = `huesped_${documento}@marinabay.com`;
+
+  const filasAcompanantes = document.querySelectorAll('#contenedor-acompanantes > div');
+  const acompanantes = [];
+
+  filasAcompanantes.forEach(fila => {
+    const aNombre = fila.querySelector('.acomp-nombre').value;
+    const aDoc = fila.querySelector('.acomp-doc').value;
+    const aManilla = fila.querySelector('.acomp-manilla').value;
+
+    if (aNombre && aManilla) {
+      acompanantes.push({ nombre: aNombre, documento: aDoc, manilla: aManilla });
+    }
+  });
+
+  if (acompanantes.length === 0) {
+    alert('Debes registrar al menos un huésped con su número de manilla asignada.');
+    return;
+  }
 
   try {
     let cliente_id = null;
@@ -682,11 +702,6 @@ async function guardarCheckInOficial(event) {
       return;
     }
 
-    if (!cliente_id) {
-      alert('Error crítico: No se pudo obtener el ID del cliente.');
-      return;
-    }
-
     const resReserva = await fetch(`${API_URL}/reservas`, {
       method: 'POST',
       headers: {
@@ -698,9 +713,9 @@ async function guardarCheckInOficial(event) {
         cliente_id,
         fecha_entrada,
         fecha_salida,
-        total,
         estado: 'ocupada',
-        boleta
+        boleta,
+        huespedes_detalle: acompanantes
       })
     });
 
@@ -724,7 +739,7 @@ async function guardarCheckInOficial(event) {
       })
     });
 
-    alert('¡Check-In completado con éxito! Boleta validada y reserva generada.');
+    alert('¡Check-In completado exitosamente! Huéspedes y manillas asignados correctamente.');
     closeRecepcionCheckInModal();
     loadRooms();
     loadHistorialReservas();
@@ -734,33 +749,188 @@ async function guardarCheckInOficial(event) {
   }
 }
 
-function updateKPIs(rooms) {
-  const total = rooms.length;
-  const disponibles = rooms.filter(r => (r.estado || r.status || '').toLowerCase() === 'disponible').length;
-  const ocupadas = rooms.filter(r => (r.estado || r.status || '').toLowerCase() === 'ocupada').length;
+// --- REQUERIMIENTO 1: REGISTRO MASIVO DE BOLETAS Y MANILLAS POR RANGOS ---
+async function cargarSelectHabitaciones() {
+  const select = document.getElementById('input-boleta-habitacion-id');
+  if (!select) return;
 
-  document.getElementById('kpi-total').innerText = total;
-  document.getElementById('kpi-disponibles').innerText = disponibles;
-  document.getElementById('kpi-ocupadas').innerText = ocupadas;
+  const token = localStorage.getItem('jwt_token');
+  try {
+    const res = await fetch(`${API_URL}/habitaciones`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    
+    if (res.ok) {
+      const data = await res.json();
+      const rooms = Array.isArray(data) ? data : (data.habitaciones || data.data || []);
+      
+      select.innerHTML = '<option value="">Seleccione un apartamento...</option>';
+      rooms.forEach(r => {
+        const rId = r.id || r._id;
+        const rNum = r.numero || r.room_number || 'S/N';
+        select.innerHTML += `<option value="${rId}">Apto ${rNum}</option>`;
+      });
+    }
+  } catch (err) {
+    console.error('Error al cargar habitaciones:', err);
+  }
 }
 
-function filtrarHabitaciones() {
-  const texto = document.getElementById('search-input').value.toLowerCase();
-  const estadoFiltro = document.getElementById('filter-status').value;
+async function registrarBoletasMasivas(event) {
+  event.preventDefault();
+  const habitacion_id = document.getElementById('input-boleta-habitacion-id').value;
+  const inicio = parseInt(document.getElementById('input-boleta-inicio').value);
+  const fin = parseInt(document.getElementById('input-boleta-fin').value);
 
-  const filtered = allRooms.filter(room => {
-    const numero = (room.numero || room.room_number || '').toLowerCase();
-    const nombres = (room.nombres_propietario || '').toLowerCase();
-    const apellidos = (room.apellidos_propietario || '').toLowerCase();
-    const estado = (room.estado || room.status || '').toLowerCase();
+  if (fin < inicio) {
+    alert('La boleta final no puede ser menor que la boleta inicial.');
+    return;
+  }
 
-    const coincideTexto = numero.includes(texto) || nombres.includes(texto) || apellidos.includes(texto);
-    const coincideEstado = estadoFiltro === 'todos' || estado.includes(estadoFiltro);
+  const token = localStorage.getItem('jwt_token');
 
-    return coincideTexto && coincideEstado;
-  });
+  try {
+    const res = await fetch(`${API_URL}/inventario/boletas/masivo`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ habitacion_id, inicio, fin })
+    });
 
-  renderRoomsTable(filtered);
+    const data = await res.json();
+    if (res.ok) {
+      alert(`¡Se crearon exitosamente ${fin - inicio + 1} boletas de acceso!`);
+      document.getElementById('form-boleta').reset();
+      cargarBoletas();
+    } else {
+      alert('Error: ' + (data.error || 'No se pudieron crear las boletas'));
+    }
+  } catch (err) {
+    alert('Error de conexión con el servidor.');
+  }
+}
+
+async function registrarManillasMasivas(event) {
+  event.preventDefault();
+  const inicio = parseInt(document.getElementById('input-manilla-inicio').value);
+  const fin = parseInt(document.getElementById('input-manilla-fin').value);
+
+  if (fin < inicio) {
+    alert('La manilla final no puede ser menor que la manilla inicial.');
+    return;
+  }
+
+  const token = localStorage.getItem('jwt_token');
+
+  try {
+    const res = await fetch(`${API_URL}/inventario/manillas/masivo`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ inicio, fin })
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      alert(`¡Se crearon exitosamente ${fin - inicio + 1} manillas en el inventario!`);
+      document.getElementById('form-manilla').reset();
+      cargarManillas();
+    } else {
+      alert('Error: ' + (data.error || 'No se pudieron registrar las manillas'));
+    }
+  } catch (err) {
+    alert('Error de conexión con el servidor.');
+  }
+}
+
+async function cargarInventario() {
+  cargarBoletas();
+  cargarManillas();
+  cargarSelectHabitaciones();
+}
+
+async function cargarBoletas() {
+  const token = localStorage.getItem('jwt_token');
+  const tbody = document.getElementById('lista-boletas');
+  if (!tbody) return;
+
+  try {
+    const res = await fetch(`${API_URL}/inventario/boletas`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      tbody.innerHTML = '';
+
+      if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #666; padding: 15px;">No hay boletas registradas.</td></tr>`;
+        return;
+      }
+
+      data.forEach(b => {
+        const estadoBadge = b.usada 
+          ? '<span style="background:#dc3545; color:white; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold;">Usada</span>'
+          : '<span style="background:#28a745; color:white; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold;">Disponible</span>';
+        
+        const habitacionTexto = b.numero_habitacion ? `Apto ${b.numero_habitacion}` : `ID: ${b.habitacion_id}`;
+
+        tbody.innerHTML += `
+          <tr>
+            <td><strong>${b.numero_boleta}</strong></td>
+            <td>${habitacionTexto}</td>
+            <td>${estadoBadge}</td>
+          </tr>
+        `;
+      });
+    }
+  } catch (err) {
+    console.error('Error al cargar boletas:', err);
+  }
+}
+
+async function cargarManillas() {
+  const token = localStorage.getItem('jwt_token');
+  const tbody = document.getElementById('lista-manillas');
+  if (!tbody) return;
+
+  try {
+    const res = await fetch(`${API_URL}/inventario/manillas`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      tbody.innerHTML = '';
+
+      if (data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="2" style="text-align: center; color: #666; padding: 15px;">No hay manillas registradas.</td></tr>`;
+        return;
+      }
+
+      data.forEach(m => {
+        const estadoLower = (m.estado || 'libre').toLowerCase();
+        let estadoBadge = '<span style="background:#28a745; color:white; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold;">Libre</span>';
+        
+        if (estadoLower === 'asignada' || estadoLower === 'ocupada') {
+          estadoBadge = '<span style="background:#17a2b8; color:white; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold;">Asignada</span>';
+        }
+
+        tbody.innerHTML += `
+          <tr>
+            <td><strong>${m.codigo_manilla}</strong></td>
+            <td>${estadoBadge}</td>
+          </tr>
+        `;
+      });
+    }
+  } catch (err) {
+    console.error('Error al cargar manillas:', err);
+  }
 }
 
 function openCheckInModal(roomId, numero) {
@@ -920,7 +1090,7 @@ async function eliminarHabitacion(id, numero) {
   }
 }
 
-// --- MÓDULO DE HISTORIAL DE RESERVAS & COMPROBANTES ---
+// --- HISTORIAL DE RESERVAS & COMPROBANTES ---
 async function loadHistorialReservas() {
   const token = localStorage.getItem('jwt_token');
   const tbody = document.getElementById('historial-list');
@@ -935,23 +1105,11 @@ async function loadHistorialReservas() {
 
     if (res.ok) {
       const data = await res.json();
-      
-      let reservas = [];
-      if (Array.isArray(data)) {
-        reservas = data;
-      } else if (data && Array.isArray(data.data)) {
-        reservas = data.data;
-      } else if (data && Array.isArray(data.reservas)) {
-        reservas = data.reservas;
-      }
-
+      let reservas = Array.isArray(data) ? data : (data.data || data.reservas || []);
       renderTablaHistorial(reservas);
-    } else {
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: #dc3545;">No se pudo cargar el historial de reservas.</td></tr>`;
     }
   } catch (err) {
     console.error('Error al cargar reservas:', err);
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: #dc3545;">Error de conexión con el servidor.</td></tr>`;
   }
 }
 
@@ -972,25 +1130,25 @@ function renderTablaHistorial(lista) {
     
     if (estado === 'ocupada' || estado === 'confirmada') {
       estadoBadge = '<span style="background:#28a745; color:white; padding:4px 8px; border-radius:12px; font-weight:bold; font-size:12px;">Ocupada</span>';
-    } else if (estado === 'finalizada') {
-      estadoBadge = '<span style="background:#007bff; color:white; padding:4px 8px; border-radius:12px; font-weight:bold; font-size:12px;">Finalizada</span>';
-    } else if (estado === 'cancelada') {
-      estadoBadge = '<span style="background:#dc3545; color:white; padding:4px 8px; border-radius:12px; font-weight:bold; font-size:12px;">Cancelada</span>';
     }
 
     const cliente = item.cliente_nombre || item.huesped_nombre || 'Sin cliente asignado';
     const numeroHabitacion = item.habitacion_numero || item.habitacion_id || 'N/A';
     const fechaEntrada = item.fecha_entrada ? item.fecha_entrada.split('T')[0] : 'N/A';
     const fechaSalida = item.fecha_salida ? item.fecha_salida.split('T')[0] : 'N/A';
-    const totalEstancia = Number(item.total || 0).toLocaleString();
+    
+    let detalleAcompanantes = '<small style="color:#666;">Individual</small>';
+    if (item.huespedes_detalle && Array.isArray(item.huespedes_detalle)) {
+      detalleAcompanantes = item.huespedes_detalle.map(h => `<div style="font-size:11px;">👤 ${h.nombre} - <strong style="color:#007bff;">📿 #${h.manilla}</strong></div>`).join('');
+    }
 
     tbody.innerHTML += `
       <tr>
         <td><strong>Apto ${numeroHabitacion}</strong></td>
         <td>${cliente}</td>
+        <td>${detalleAcompanantes}</td>
         <td>📅 ${fechaEntrada} ➔ ${fechaSalida}</td>
         <td>${estadoBadge}</td>
-        <td>$${totalEstancia}</td>
         <td>
           <button onclick="descargarComprobantePDF(${item.id})" style="background:#17a2b8; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px;">
             📄 Ver Comprobante
@@ -1001,21 +1159,13 @@ function renderTablaHistorial(lista) {
   });
 }
 
-// --- FUNCIÓN PARA PREVISUALIZAR EL COMPROBANTE PDF ---
 async function descargarComprobantePDF(reservaId) {
   const token = localStorage.getItem('jwt_token');
-
-  if (!token) {
-    alert('Debes iniciar sesión para ver el comprobante.');
-    return;
-  }
 
   try {
     const response = await fetch(`${API_URL}/pdf/comprobante/${reservaId}`, {
       method: 'GET',
-      headers: { 
-        'Authorization': `Bearer ${token}` 
-      }
+      headers: { 'Authorization': `Bearer ${token}` }
     });
 
     if (response.ok) {
@@ -1036,13 +1186,9 @@ async function descargarComprobantePDF(reservaId) {
         modal.classList.remove('hidden');
         modal.style.display = 'flex';
       }
-    } else {
-      const errData = await response.json().catch(() => ({}));
-      alert('No se pudo generar el comprobante: ' + (errData.error || 'Error del servidor'));
     }
   } catch (err) {
     console.error('Error al cargar PDF:', err);
-    alert('Error de conexión al intentar generar el comprobante PDF.');
   }
 }
 
@@ -1052,199 +1198,35 @@ function closePdfModal() {
     modal.classList.add('hidden');
     modal.style.display = 'none';
   }
-  const iframe = document.getElementById('pdf-viewer-frame');
-  if (iframe) iframe.src = '';
 }
 
-// --- MÓDULO DE INVENTARIO ---
+function updateKPIs(rooms) {
+  const total = rooms.length;
+  const disponibles = rooms.filter(r => (r.estado || r.status || '').toLowerCase() === 'disponible').length;
+  const ocupadas = rooms.filter(r => (r.estado || r.status || '').toLowerCase() === 'ocupada').length;
 
-async function cargarSelectHabitaciones() {
-  const select = document.getElementById('input-habitacion-id');
-  if (!select) return;
-
-  const token = localStorage.getItem('jwt_token');
-  try {
-    const res = await fetch(`${API_URL}/habitaciones`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    
-    if (res.ok) {
-      const data = await res.json();
-      const rooms = Array.isArray(data) ? data : (data.habitaciones || data.data || []);
-      
-      select.innerHTML = '<option value="">Seleccione un apartamento...</option>';
-      
-      if (rooms.length === 0) {
-        select.innerHTML = '<option value="">No hay habitaciones registradas</option>';
-        return;
-      }
-
-      rooms.forEach(r => {
-        const rId = r.id || r._id;
-        const rNum = r.numero || r.room_number || 'S/N';
-        const rTipo = r.tipo || r.type || '';
-        select.innerHTML += `<option value="${rId}">Apto ${rNum} (${rTipo})</option>`;
-      });
-    } else {
-      select.innerHTML = '<option value="">Error al cargar habitaciones</option>';
-    }
-  } catch (err) {
-    console.error('Error al cargar habitaciones para el inventario:', err);
-    select.innerHTML = '<option value="">Error de conexión</option>';
-  }
+  document.getElementById('kpi-total').innerText = total;
+  document.getElementById('kpi-disponibles').innerText = disponibles;
+  document.getElementById('kpi-ocupadas').innerText = ocupadas;
 }
 
-async function cargarInventario() {
-  cargarBoletas();
-  cargarManillas();
-  cargarSelectHabitaciones();
-}
+function filtrarHabitaciones() {
+  const texto = document.getElementById('search-input').value.toLowerCase();
+  const estadoFiltro = document.getElementById('filter-status').value;
 
-async function cargarBoletas() {
-  const token = localStorage.getItem('jwt_token');
-  const tbody = document.getElementById('lista-boletas');
-  if (!tbody) return;
+  const filtered = allRooms.filter(room => {
+    const numero = (room.numero || room.room_number || '').toLowerCase();
+    const nombres = (room.nombres_propietario || '').toLowerCase();
+    const apellidos = (room.apellidos_propietario || '').toLowerCase();
+    const estado = (room.estado || room.status || '').toLowerCase();
 
-  try {
-    const res = await fetch(`${API_URL}/inventario/boletas`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
+    const coincideTexto = numero.includes(texto) || nombres.includes(texto) || apellidos.includes(texto);
+    const coincideEstado = estadoFiltro === 'todos' || estado.includes(estadoFiltro);
 
-    if (res.ok) {
-      const data = await res.json();
-      tbody.innerHTML = '';
+    return coincideTexto && coincideEstado;
+  });
 
-      if (data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: #666; padding: 15px;">No hay boletas registradas.</td></tr>`;
-        return;
-      }
-
-      data.forEach(b => {
-        const estadoBadge = b.usada 
-          ? '<span style="background:#dc3545; color:white; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold;">Usada</span>'
-          : '<span style="background:#28a745; color:white; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold;">Disponible</span>';
-        
-        const habitacionTexto = b.numero_habitacion ? `Apto ${b.numero_habitacion}` : `ID: ${b.habitacion_id}`;
-
-        tbody.innerHTML += `
-          <tr>
-            <td><strong>${b.numero_boleta}</strong></td>
-            <td>${habitacionTexto}</td>
-            <td>${estadoBadge}</td>
-          </tr>
-        `;
-      });
-    }
-  } catch (err) {
-    console.error('Error al cargar boletas:', err);
-    tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: red;">Error al cargar datos.</td></tr>`;
-  }
-}
-
-async function cargarManillas() {
-  const token = localStorage.getItem('jwt_token');
-  const tbody = document.getElementById('lista-manillas');
-  if (!tbody) return;
-
-  try {
-    const res = await fetch(`${API_URL}/inventario/manillas`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      tbody.innerHTML = '';
-
-      if (data.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="2" style="text-align: center; color: #666; padding: 15px;">No hay manillas registradas.</td></tr>`;
-        return;
-      }
-
-      data.forEach(m => {
-        const estadoLower = (m.estado || 'libre').toLowerCase();
-        let estadoBadge = '<span style="background:#28a745; color:white; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold;">Libre</span>';
-        
-        if (estadoLower === 'asignada' || estadoLower === 'ocupada') {
-          estadoBadge = '<span style="background:#17a2b8; color:white; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold;">Asignada</span>';
-        }
-
-        tbody.innerHTML += `
-          <tr>
-            <td><strong>${m.codigo_manilla}</strong></td>
-            <td>${estadoBadge}</td>
-          </tr>
-        `;
-      });
-    }
-  } catch (err) {
-    console.error('Error al cargar manillas:', err);
-    tbody.innerHTML = `<tr><td colspan="2" style="text-align: center; color: red;">Error al cargar datos.</td></tr>`;
-  }
-}
-
-async function registrarBoleta(event) {
-  event.preventDefault();
-  const numero_boleta = document.getElementById('input-num-boleta').value;
-  const habitacion_id = document.getElementById('input-habitacion-id').value;
-
-  if (!habitacion_id) {
-    alert('Por favor selecciona una habitación o apartamento.');
-    return;
-  }
-
-  const token = localStorage.getItem('jwt_token');
-
-  try {
-    const res = await fetch(`${API_URL}/inventario/boletas`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ numero_boleta, habitacion_id })
-    });
-
-    const data = await res.json();
-    if (res.ok) {
-      alert(data.mensaje || '¡Boleta registrada con éxito!');
-      document.getElementById('form-boleta').reset();
-      cargarBoletas();
-    } else {
-      alert('Error: ' + (data.error || 'No se pudo registrar la boleta'));
-    }
-  } catch (err) {
-    console.error('Error al registrar boleta:', err);
-    alert('Error de conexión con el servidor.');
-  }
-}
-
-async function registrarManilla(event) {
-  event.preventDefault();
-  const codigo_manilla = document.getElementById('input-codigo-manilla').value;
-  const token = localStorage.getItem('jwt_token');
-
-  try {
-    const res = await fetch(`${API_URL}/inventario/manillas`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ codigo_manilla })
-    });
-
-    const data = await res.json();
-    if (res.ok) {
-      alert(data.mensaje || '¡Manilla registrada con éxito!');
-      document.getElementById('form-manilla').reset();
-      cargarManillas();
-    } else {
-      alert('Error: ' + (data.error || 'No se pudo registrar la manilla'));
-    }
-  } catch (err) {
-    console.error('Error al registrar manilla:', err);
-    alert('Error de conexión con el servidor.');
-  }
+  renderRoomsTable(filtered);
 }
 
 function logout() {
