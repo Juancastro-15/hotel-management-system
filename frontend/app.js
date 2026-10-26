@@ -2,6 +2,7 @@ const API_URL = 'https://hotel-management-system-dun5.onrender.com/api';
 
 let allRooms = []; 
 let allUsers = [];
+let manillasDisponiblesCache = [];
 
 function toggleAuthView(view) {
   const loginContainer = document.getElementById('form-login-container');
@@ -579,29 +580,63 @@ async function cancelarPreReserva(id, numeroApto) {
   }
 }
 
-// --- REQUERIMIENTO 3: MANEJO DINÁMICO DE HUÉSPEDES / ACOMPAÑANTES Y MANILLAS ---
-function agregarFilaAcompanante(nombre = '', documento = '', manilla = '') {
+// --- AUTO-SUGERENCIA DE MANILLAS Y GESTIÓN DINÁMICA DE INTEGRANTES ---
+
+async function obtenerManillasDisponibles() {
+  const token = localStorage.getItem('jwt_token');
+  try {
+    const res = await fetch(`${API_URL}/inventario/manillas`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const libres = data
+        .filter(m => (m.estado || 'libre').toLowerCase() === 'libre')
+        .map(m => m.codigo_manilla)
+        .sort((a, b) => parseInt(a) - parseInt(b));
+      return libres;
+    }
+  } catch (err) {
+    console.error('Error al consultar manillas libres:', err);
+  }
+  return [];
+}
+
+async function prepararManillasParaCheckIn() {
+  manillasDisponiblesCache = await obtenerManillasDisponibles();
+}
+
+async function agregarFilaAcompanante(nombre = '', doc = '', manilla = '', edad = '', pais = 'COLOMBIA', ciudad = '') {
   const contenedor = document.getElementById('contenedor-acompanantes');
   if (!contenedor) return;
 
+  if (!manilla) {
+    const asignadasEnForm = Array.from(document.querySelectorAll('.acomp-manilla')).map(i => i.value);
+    const siguienteManilla = manillasDisponiblesCache.find(m => !asignadasEnForm.includes(m));
+    manilla = siguienteManilla || '';
+  }
+
   const idFila = 'acomp-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
-  
   const div = document.createElement('div');
   div.id = idFila;
-  div.style.cssText = 'display: grid; grid-template-columns: 2fr 1.5fr 1.5fr 40px; gap: 8px; align-items: center; background: #fff; padding: 8px; border-radius: 4px; border: 1px solid #e0e0e0;';
+  div.style.cssText = 'display: grid; grid-template-columns: 1.2fr 1.2fr 0.8fr 1fr 1fr 1.5fr 1.5fr 35px; gap: 6px; align-items: center; background: #fff; padding: 8px; border-radius: 4px; border: 1px solid #e0e0e0; font-size: 12px;';
 
   div.innerHTML = `
-    <input type="text" class="acomp-nombre" value="${nombre}" placeholder="Nombre completo del acompañante" required style="padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;">
-    <input type="text" class="acomp-doc" value="${documento}" placeholder="Documento ID" required style="padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px;">
-    <input type="text" class="acomp-manilla" value="${manilla}" placeholder="# Manilla (ej. 5001)" required style="padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; font-weight: bold; color: #007bff;">
-    <button type="button" onclick="document.getElementById('${idFila}').remove()" style="background: #dc3545; color: white; border: none; border-radius: 4px; padding: 6px; cursor: pointer; font-weight: bold;" title="Quitar">✕</button>
+    <input type="text" class="acomp-doc" value="${doc}" placeholder="Doc. ID" required style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
+    <input type="text" class="acomp-manilla" value="${manilla}" placeholder="# Manilla" required style="padding: 5px; border: 1px solid #007bff; border-radius: 3px; font-size: 11px; font-weight: bold; color: #007bff;">
+    <input type="number" class="acomp-edad" value="${edad}" placeholder="Edad" style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
+    <input type="text" class="acomp-pais" value="${pais}" placeholder="País" style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
+    <input type="text" class="acomp-ciudad" value="${ciudad}" placeholder="Ciudad" style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
+    <input type="text" class="acomp-nombres" value="${nombre}" placeholder="Nombres" required style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
+    <input type="text" class="acomp-apellidos" placeholder="Apellidos" style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
+    <button type="button" onclick="document.getElementById('${idFila}').remove()" style="background: #dc3545; color: white; border: none; border-radius: 3px; padding: 5px; cursor: pointer; font-weight: bold;" title="Quitar">✕</button>
   `;
 
   contenedor.appendChild(div);
 }
 
-// --- REQUERIMIENTO 2 Y 3: CHECK-IN SIN CAMPO DE PRECIO & ASIGNACIÓN DETALLADA ---
-function abrirModalRecepcionCheckIn(roomId, huespedPreReserva = '', fIngreso = '', fSalida = '') {
+// --- CHECK-IN OPERATIVO EN RECEPCIÓN ---
+async function abrirModalRecepcionCheckIn(roomId, huespedPreReserva = '', fIngreso = '', fSalida = '') {
   document.getElementById('checkin-op-room-id').value = roomId;
   document.getElementById('checkin-op-nombre').value = huespedPreReserva;
   
@@ -614,10 +649,12 @@ function abrirModalRecepcionCheckIn(roomId, huespedPreReserva = '', fIngreso = '
   document.getElementById('checkin-op-placa').value = '';
   document.getElementById('checkin-op-obs').value = '';
 
+  await prepararManillasParaCheckIn();
+
   const contenedor = document.getElementById('contenedor-acompanantes');
   if (contenedor) {
     contenedor.innerHTML = '';
-    agregarFilaAcompanante(huespedPreReserva ? huespedPreReserva : '');
+    await agregarFilaAcompanante(huespedPreReserva ? huespedPreReserva : '');
   }
 
   const modal = document.getElementById('recepcion-checkin-modal');
@@ -665,12 +702,24 @@ async function guardarCheckInOficial(event) {
   const acompanantes = [];
 
   filasAcompanantes.forEach(fila => {
-    const aNombre = fila.querySelector('.acomp-nombre').value;
     const aDoc = fila.querySelector('.acomp-doc').value;
     const aManilla = fila.querySelector('.acomp-manilla').value;
+    const aEdad = fila.querySelector('.acomp-edad').value;
+    const aPais = fila.querySelector('.acomp-pais').value;
+    const aCiudad = fila.querySelector('.acomp-ciudad').value;
+    const aNombres = fila.querySelector('.acomp-nombres').value;
+    const aApellidos = fila.querySelector('.acomp-apellidos').value;
 
-    if (aNombre && aManilla) {
-      acompanantes.push({ nombre: aNombre, documento: aDoc, manilla: aManilla });
+    if (aNombres && aManilla) {
+      acompanantes.push({
+        documento: aDoc,
+        manilla: aManilla,
+        edad: aEdad,
+        pais: aPais,
+        ciudad: aCiudad,
+        nombres: aNombres,
+        apellidos: aApellidos
+      });
     }
   });
 
@@ -749,7 +798,119 @@ async function guardarCheckInOficial(event) {
   }
 }
 
-// --- REQUERIMIENTO 1: REGISTRO MASIVO DE BOLETAS Y MANILLAS POR RANGOS ---
+// --- GESTIÓN Y ADICIÓN DE ACOMPAÑANTES A RESERVAS EXISTENTES ---
+
+async function abrirModalGestionAcompanantes(reservaId, numeroApto) {
+  document.getElementById('acomp-reserva-id').value = reservaId;
+  document.getElementById('acomp-modal-title').innerText = `👥 Gestión de Acompañantes & Manillas - Apto ${numeroApto}`;
+  document.getElementById('form-nuevo-acompanante').reset();
+  document.getElementById('add-acomp-pais').value = 'COLOMBIA';
+
+  const libres = await obtenerManillasDisponibles();
+  document.getElementById('add-acomp-manilla').value = libres[0] || '';
+
+  await cargarOcupantesActuales(reservaId);
+
+  const modal = document.getElementById('gestion-acompanantes-modal');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+  }
+}
+
+function closeGestionAcompanantesModal() {
+  const modal = document.getElementById('gestion-acompanantes-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
+}
+
+async function cargarOcupantesActuales(reservaId) {
+  const token = localStorage.getItem('jwt_token');
+  const tbody = document.getElementById('tabla-ocupantes-actuales');
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 10px;">Cargando acompañantes...</td></tr>';
+
+  try {
+    const res = await fetch(`${API_URL}/reservas/${reservaId}/acompanantes`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (res.ok) {
+      const ocupantes = await res.json();
+      tbody.innerHTML = '';
+
+      if (ocupantes.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 10px; color: #666;">No hay acompañantes adicionales registrados.</td></tr>';
+        return;
+      }
+
+      ocupantes.forEach(o => {
+        tbody.innerHTML += `
+          <tr>
+            <td><strong>${o.documento || 'N/A'}</strong></td>
+            <td><strong style="color: #007bff;">📿 #${o.codigo_manilla || o.manilla}</strong></td>
+            <td>${o.nombres || ''} ${o.apellidos || ''}</td>
+            <td>${o.edad || 'N/A'}</td>
+            <td>${o.pais || 'COLOMBIA'} (${o.ciudad || '-'})</td>
+            <td><small>${o.created_at ? o.created_at.split('T')[0] : 'Check-In'}</small></td>
+          </tr>
+        `;
+      });
+    }
+  } catch (err) {
+    console.error('Error al obtener acompañantes:', err);
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 10px; color: red;">Error al consultar lista de acompañantes.</td></tr>';
+  }
+}
+
+async function guardarNuevoAcompananteExistente(event) {
+  event.preventDefault();
+  const token = localStorage.getItem('jwt_token');
+  const reserva_id = document.getElementById('acomp-reserva-id').value;
+
+  const payload = {
+    nombres: document.getElementById('add-acomp-nombres').value,
+    apellidos: document.getElementById('add-acomp-apellidos').value,
+    documento: document.getElementById('add-acomp-doc').value,
+    manilla: document.getElementById('add-acomp-manilla').value,
+    edad: document.getElementById('add-acomp-edad').value,
+    pais: document.getElementById('add-acomp-pais').value,
+    ciudad: document.getElementById('add-acomp-ciudad').value
+  };
+
+  try {
+    const res = await fetch(`${API_URL}/reservas/${reserva_id}/acompanantes`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      alert('¡Acompañante agregado y manilla asignada con éxito!');
+      document.getElementById('form-nuevo-acompanante').reset();
+      document.getElementById('add-acomp-pais').value = 'COLOMBIA';
+      
+      await cargarOcupantesActuales(reserva_id);
+      const libres = await obtenerManillasDisponibles();
+      document.getElementById('add-acomp-manilla').value = libres[0] || '';
+      
+      loadHistorialReservas();
+    } else {
+      const errData = await res.json();
+      alert('Error: ' + (errData.error || 'No se pudo agregar el acompañante'));
+    }
+  } catch (err) {
+    console.error('Error al agregar acompañante:', err);
+    alert('Error de conexión con el servidor.');
+  }
+}
+
+// --- MÓDULO DE INVENTARIO MASIVO ---
+
 async function cargarSelectHabitaciones() {
   const select = document.getElementById('input-boleta-habitacion-id');
   if (!select) return;
@@ -1136,17 +1297,16 @@ function renderTablaHistorial(lista) {
     const numeroHabitacion = item.habitacion_numero || item.habitacion_id || 'N/A';
     const fechaEntrada = item.fecha_entrada ? item.fecha_entrada.split('T')[0] : 'N/A';
     const fechaSalida = item.fecha_salida ? item.fecha_salida.split('T')[0] : 'N/A';
-    
-    let detalleAcompanantes = '<small style="color:#666;">Individual</small>';
-    if (item.huespedes_detalle && Array.isArray(item.huespedes_detalle)) {
-      detalleAcompanantes = item.huespedes_detalle.map(h => `<div style="font-size:11px;">👤 ${h.nombre} - <strong style="color:#007bff;">📿 #${h.manilla}</strong></div>`).join('');
-    }
 
     tbody.innerHTML += `
       <tr>
         <td><strong>Apto ${numeroHabitacion}</strong></td>
         <td>${cliente}</td>
-        <td>${detalleAcompanantes}</td>
+        <td>
+          <button onclick="abrirModalGestionAcompanantes(${item.id}, '${numeroHabitacion}')" style="background:#6f42c1; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;">
+            👥 Acompañantes / Manillas
+          </button>
+        </td>
         <td>📅 ${fechaEntrada} ➔ ${fechaSalida}</td>
         <td>${estadoBadge}</td>
         <td>
