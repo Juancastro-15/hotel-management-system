@@ -647,18 +647,24 @@ async function agregarFilaAcompanante(nombre = '', doc = '', manilla = '', edad 
 
 // --- CHECK-IN OPERATIVO EN RECEPCIÓN ---
 async function abrirModalRecepcionCheckIn(roomId, huespedPreReserva = '', fIngreso = '', fSalida = '') {
-  document.getElementById('checkin-op-room-id').value = roomId;
-  document.getElementById('checkin-op-nombre').value = huespedPreReserva;
+  // Función auxiliar segura para evitar errores de tipo TypeError si falta algún campo en el HTML
+  const setVal = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val;
+  };
+
+  setVal('checkin-op-room-id', roomId);
+  setVal('checkin-op-nombre', huespedPreReserva);
   
   const hoy = new Date().toISOString().split('T')[0];
-  document.getElementById('checkin-op-entrada').value = fIngreso || hoy;
-  document.getElementById('checkin-op-salida').value = fSalida || hoy;
-  document.getElementById('checkin-op-documento').value = '';
-  document.getElementById('checkin-op-telefono').value = '';
-  document.getElementById('checkin-op-boleta').value = '';
-  document.getElementById('checkin-op-placa').value = '';
-  document.getElementById('checkin-op-obs').value = '';
-  document.getElementById('checkin-op-foto-input').value = '';
+  setVal('checkin-op-entrada', fIngreso || hoy);
+  setVal('checkin-op-salida', fSalida || hoy);
+  setVal('checkin-op-documento', '');
+  setVal('checkin-op-telefono', '');
+  setVal('checkin-op-boleta', '');
+  setVal('checkin-op-placa', '');
+  setVal('checkin-op-obs', '');
+  setVal('checkin-op-foto-input', '');
   
   const btnFotoTitular = document.getElementById('btn-foto-titular');
   if (btnFotoTitular) {
@@ -710,35 +716,40 @@ function confirmarIngresoHuesped(id) {
 async function guardarCheckInOficial(event) {
   event.preventDefault();
 
+  const getVal = (id) => {
+    const el = document.getElementById(id);
+    return el ? el.value : '';
+  };
+
   const token = localStorage.getItem('jwt_token');
-  const habitacion_id = document.getElementById('checkin-op-room-id').value;
-  const nombre = document.getElementById('checkin-op-nombre').value;
-  const tipo_documento_titular = document.getElementById('checkin-op-tipo-doc').value;
-  const documento = document.getElementById('checkin-op-documento').value;
-  const manilla_titular = document.getElementById('checkin-op-manilla').value;
-  const foto_titular = document.getElementById('checkin-op-foto-input').value;
-  const telefono = document.getElementById('checkin-op-telefono').value;
-  const fecha_entrada = document.getElementById('checkin-op-entrada').value;
-  const fecha_salida = document.getElementById('checkin-op-salida').value;
-  const boleta = document.getElementById('checkin-op-boleta').value;
-  const vehiculo = document.getElementById('checkin-op-vehiculo') ? document.getElementById('checkin-op-vehiculo').value : 'NO';
-  const placa = document.getElementById('checkin-op-placa').value;
-  const observaciones = document.getElementById('checkin-op-obs').value;
+  const habitacion_id = getVal('checkin-op-room-id');
+  const nombre = getVal('checkin-op-nombre');
+  const tipo_documento_titular = getVal('checkin-op-tipo-doc') || 'CC';
+  const documento = getVal('checkin-op-documento');
+  const manilla_titular = getVal('checkin-op-manilla');
+  const foto_titular = getVal('checkin-op-foto-input');
+  const telefono = getVal('checkin-op-telefono');
+  const fecha_entrada = getVal('checkin-op-entrada');
+  const fecha_salida = getVal('checkin-op-salida');
+  const boleta = getVal('checkin-op-boleta');
+  const vehiculo = getVal('checkin-op-vehiculo') || 'NO';
+  const placa = getVal('checkin-op-placa');
+  const observaciones = getVal('checkin-op-obs');
   const email = `huesped_${documento}@marinabay.com`;
 
   const filasAcompanantes = document.querySelectorAll('#contenedor-acompanantes > div');
   const acompanantes = [];
 
   filasAcompanantes.forEach(fila => {
-    const aTipoDoc = fila.querySelector('.acomp-tipo-doc').value;
-    const aDoc = fila.querySelector('.acomp-doc').value;
-    const aManilla = fila.querySelector('.acomp-manilla').value;
-    const aEdad = fila.querySelector('.acomp-edad').value;
-    const aPais = fila.querySelector('.acomp-pais').value;
-    const aCiudad = fila.querySelector('.acomp-ciudad').value;
-    const aNombres = fila.querySelector('.acomp-nombres').value;
-    const aApellidos = fila.querySelector('.acomp-apellidos').value;
-    const aFoto = fila.querySelector('.acomp-foto-input').value;
+    const aTipoDoc = fila.querySelector('.acomp-tipo-doc') ? fila.querySelector('.acomp-tipo-doc').value : 'CC';
+    const aDoc = fila.querySelector('.acomp-doc') ? fila.querySelector('.acomp-doc').value : '';
+    const aManilla = fila.querySelector('.acomp-manilla') ? fila.querySelector('.acomp-manilla').value : '';
+    const aEdad = fila.querySelector('.acomp-edad') ? fila.querySelector('.acomp-edad').value : '';
+    const aPais = fila.querySelector('.acomp-pais') ? fila.querySelector('.acomp-pais').value : 'COLOMBIA';
+    const aCiudad = fila.querySelector('.acomp-ciudad') ? fila.querySelector('.acomp-ciudad').value : '';
+    const aNombres = fila.querySelector('.acomp-nombres') ? fila.querySelector('.acomp-nombres').value : '';
+    const aApellidos = fila.querySelector('.acomp-apellidos') ? fila.querySelector('.acomp-apellidos').value : '';
+    const aFoto = fila.querySelector('.acomp-foto-input') ? fila.querySelector('.acomp-foto-input').value : '';
 
     if (aNombres && aManilla) {
       acompanantes.push({
@@ -837,8 +848,12 @@ async function abrirModalGestionAcompanantes(reservaId, numeroApto) {
   document.getElementById('acomp-reserva-id').value = reservaId;
   document.getElementById('acomp-modal-title').innerText = `👥 Gestión de Acompañantes & Manillas - Apto ${numeroApto}`;
   document.getElementById('form-nuevo-acompanante').reset();
-  document.getElementById('add-acomp-pais').value = 'COLOMBIA';
-  document.getElementById('add-acomp-foto-input').value = '';
+  
+  const elPais = document.getElementById('add-acomp-pais');
+  if (elPais) elPais.value = 'COLOMBIA';
+  
+  const elFoto = document.getElementById('add-acomp-foto-input');
+  if (elFoto) elFoto.value = '';
   
   const btnFotoAdd = document.getElementById('btn-foto-nuevo-acomp');
   if (btnFotoAdd) {
@@ -847,7 +862,8 @@ async function abrirModalGestionAcompanantes(reservaId, numeroApto) {
   }
 
   const libres = await obtenerManillasDisponibles();
-  document.getElementById('add-acomp-manilla').value = libres[0] || '';
+  const elManilla = document.getElementById('add-acomp-manilla');
+  if (elManilla) elManilla.value = libres[0] || '';
 
   await cargarOcupantesActuales(reservaId);
 
@@ -914,16 +930,21 @@ async function guardarNuevoAcompananteExistente(event) {
   const token = localStorage.getItem('jwt_token');
   const reserva_id = document.getElementById('acomp-reserva-id').value;
 
+  const getVal = (id) => {
+    const el = document.getElementById(id);
+    return el ? el.value : '';
+  };
+
   const payload = {
-    tipo_documento: document.getElementById('add-acomp-tipo-doc').value,
-    nombres: document.getElementById('add-acomp-nombres').value,
-    apellidos: document.getElementById('add-acomp-apellidos').value,
-    documento: document.getElementById('add-acomp-doc').value,
-    manilla: document.getElementById('add-acomp-manilla').value,
-    edad: document.getElementById('add-acomp-edad').value,
-    pais: document.getElementById('add-acomp-pais').value,
-    ciudad: document.getElementById('add-acomp-ciudad').value,
-    foto: document.getElementById('add-acomp-foto-input').value
+    tipo_documento: getVal('add-acomp-tipo-doc') || 'CC',
+    nombres: getVal('add-acomp-nombres'),
+    apellidos: getVal('add-acomp-apellidos'),
+    documento: getVal('add-acomp-doc'),
+    manilla: getVal('add-acomp-manilla'),
+    edad: getVal('add-acomp-edad'),
+    pais: getVal('add-acomp-pais') || 'COLOMBIA',
+    ciudad: getVal('add-acomp-ciudad'),
+    foto: getVal('add-acomp-foto-input')
   };
 
   try {
@@ -939,12 +960,18 @@ async function guardarNuevoAcompananteExistente(event) {
     if (res.ok) {
       alert('¡Acompañante agregado y manilla asignada con éxito!');
       document.getElementById('form-nuevo-acompanante').reset();
-      document.getElementById('add-acomp-pais').value = 'COLOMBIA';
-      document.getElementById('add-acomp-foto-input').value = '';
+      
+      const elPais = document.getElementById('add-acomp-pais');
+      if (elPais) elPais.value = 'COLOMBIA';
+      
+      const elFoto = document.getElementById('add-acomp-foto-input');
+      if (elFoto) elFoto.value = '';
       
       await cargarOcupantesActuales(reserva_id);
       const libres = await obtenerManillasDisponibles();
-      document.getElementById('add-acomp-manilla').value = libres[0] || '';
+      
+      const elManilla = document.getElementById('add-acomp-manilla');
+      if (elManilla) elManilla.value = libres[0] || '';
       
       loadHistorialReservas();
     } else {
@@ -1004,7 +1031,7 @@ function abrirModalCamara(tipo, idFila = '') {
 
   navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
     .then(stream => {
-      currentVideoElement.srcObject = stream;
+      if (currentVideoElement) currentVideoElement.srcObject = stream;
     })
     .catch(err => {
       alert('No se pudo acceder a la cámara: ' + err.message);
