@@ -619,14 +619,18 @@ async function agregarFilaAcompanante(nombre = '', doc = '', manilla = '', edad 
   const idFila = 'acomp-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
   const div = document.createElement('div');
   div.id = idFila;
-  div.style.cssText = 'display: grid; grid-template-columns: 0.9fr 1.2fr 0.8fr 0.8fr 1fr 1fr 1.3fr 1.3fr 1.1fr 35px; gap: 5px; align-items: center; background: #fff; padding: 8px; border-radius: 4px; border: 1px solid #e0e0e0; font-size: 11px; margin-bottom: 6px;';
+  div.style.cssText = 'display: grid; grid-template-columns: 1.3fr 1.2fr 0.8fr 0.8fr 1fr 1fr 1.3fr 1.3fr 1.1fr 35px; gap: 5px; align-items: center; background: #fff; padding: 8px; border-radius: 4px; border: 1px solid #e0e0e0; font-size: 11px; margin-bottom: 6px;';
 
   div.innerHTML = `
     <select class="acomp-tipo-doc" style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
       <option value="CC" ${tipoDoc === 'CC' ? 'selected' : ''}>CC</option>
+      <option value="CC | NUEVO FORMATO" ${tipoDoc === 'CC | NUEVO FORMATO' ? 'selected' : ''}>CC | NUEVO FORMATO</option>
       <option value="CE" ${tipoDoc === 'CE' ? 'selected' : ''}>CE</option>
-      <option value="PP" ${tipoDoc === 'PP' ? 'selected' : ''}>Pasaporte</option>
+      <option value="PA" ${tipoDoc === 'PA' ? 'selected' : ''}>PA</option>
       <option value="TI" ${tipoDoc === 'TI' ? 'selected' : ''}>TI</option>
+      <option value="CD" ${tipoDoc === 'CD' ? 'selected' : ''}>CD</option>
+      <option value="DE" ${tipoDoc === 'DE' ? 'selected' : ''}>DE</option>
+      <option value="RC" ${tipoDoc === 'RC' ? 'selected' : ''}>RC</option>
     </select>
     <input type="text" class="acomp-doc" value="${doc}" placeholder="N° Documento" required style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;" title="Escanea aquí con tu lector de código de barras/PDF417">
     <input type="text" class="acomp-manilla" value="${manilla}" placeholder="# Manilla" required style="padding: 5px; border: 1px solid #007bff; border-radius: 3px; font-size: 11px; font-weight: bold; color: #007bff;">
