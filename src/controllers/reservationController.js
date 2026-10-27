@@ -9,6 +9,7 @@ const obtenerReservas = async (req, res) => {
         let query = `
             SELECT r.id, r.fecha_entrada, r.fecha_salida, r.estado, r.total, r.created_at,
                    r.boleta, r.vehiculo, r.placa, r.observaciones,
+                   r.manilla_titular, r.tipo_documento_titular, r.foto_titular,
                    u.id AS usuario_id, u.nombre AS usuario_nombre,
                    c.id AS cliente_id, c.nombre AS cliente_nombre, c.documento AS cliente_documento, c.telefono AS cliente_telefono,
                    h.id AS habitacion_id, h.numero AS habitacion_numero, h.tipo AS habitacion_tipo, h.precio_noche
@@ -61,13 +62,20 @@ const obtenerReservas = async (req, res) => {
     }
 };
 
-// Crear una nueva reserva validando la boleta del propietario y guardando acompañantes de forma transaccional
+// Crear una nueva reserva validando boleta, guardando titular (con manilla/foto) y acompañantes de forma transaccional
 const crearReserva = async (req, res) => {
     const client = await db.getClient();
     try {
         await client.query('BEGIN');
 
-        const { cliente_id, habitacion_id, fecha_entrada, fecha_salida, estado: estadoReq, total: totalReq, boleta: numeroBoleta, vehiculo, placa, observaciones, huespedes_detalle } = req.body;
+        const { 
+            cliente_id, habitacion_id, fecha_entrada, fecha_salida, 
+            estado: estadoReq, total: totalReq, boleta: numeroBoleta, 
+            vehiculo, placa, observaciones, 
+            manilla_titular, tipo_documento_titular, foto_titular,
+            huespedes_detalle 
+        } = req.body;
+        
         const usuario_id = req.usuario.id;
 
         // 1. Validar que se envíe el número de boleta
@@ -140,30 +148,44 @@ const crearReserva = async (req, res) => {
         const total = totalReq !== undefined && totalReq !== null && totalReq !== '' ? parseFloat(totalReq) : (diffDays * precioNoche);
         const estadoFinal = estadoReq || 'ocupada';
 
-        // 8. Insertar la reserva
+        // 8. Insertar la reserva (incluyendo manilla, tipo de documento y foto del titular)
         const nuevaReserva = await client.query(
-            `INSERT INTO reservas (usuario_id, cliente_id, habitacion_id, fecha_entrada, fecha_salida, estado, total, boleta, vehiculo, placa, observaciones)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
-            [usuario_id, cliente_id, habitacion_id, fecha_entrada, fecha_salida, estadoFinal, total, numeroBoleta, vehiculo || 'NO', placa || '', observaciones || '']
+            `INSERT INTO reservas (usuario_id, cliente_id, habitacion_id, fecha_entrada, fecha_salida, estado, total, boleta, vehiculo, placa, observaciones, manilla_titular, tipo_documento_titular, foto_titular)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
+            [
+                usuario_id, cliente_id, habitacion_id, fecha_entrada, fecha_salida, 
+                estadoFinal, total, numeroBoleta, vehiculo || 'NO', placa || '', 
+                observaciones || '', manilla_titular || '', tipo_documento_titular || 'CC', foto_titular || ''
+            ]
         );
 
         const reservaCreada = nuevaReserva.rows[0];
 
-        // 9. Guardar los acompañantes detallados y actualizar estado de manillas a 'asignada'
+        // 9. Actualizar el estado de la manilla del titular a 'asignada' si se asignó
+        if (manilla_titular) {
+            await client.query(
+                `UPDATE manillas SET estado = 'asignada' WHERE codigo_manilla = $1`,
+                [manilla_titular]
+            );
+        }
+
+        // 10. Guardar los acompañantes detallados y actualizar estado de sus manillas a 'asignada'
         if (huespedes_detalle && Array.isArray(huespedes_detalle) && huespedes_detalle.length > 0) {
             for (const acomp of huespedes_detalle) {
                 await client.query(
-                    `INSERT INTO acompanantes (reserva_id, nombres, apellidos, documento, codigo_manilla, edad, pais, ciudad)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                    `INSERT INTO acompanantes (reserva_id, nombres, apellidos, tipo_documento, documento, codigo_manilla, edad, pais, ciudad, foto)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
                     [
                         reservaCreada.id,
                         acomp.nombres || acomp.nombre || '',
                         acomp.apellidos || '',
+                        acomp.tipo_documento || 'CC',
                         acomp.documento || '',
                         acomp.manilla || '',
                         acomp.edad || null,
                         acomp.pais || 'COLOMBIA',
-                        acomp.ciudad || ''
+                        acomp.ciudad || '',
+                        acomp.foto || ''
                     ]
                 );
 
@@ -176,17 +198,17 @@ const crearReserva = async (req, res) => {
             }
         }
 
-        // 10. Marcar la boleta como utilizada
+        // 11. Marcar la boleta como utilizada
         await client.query('UPDATE boletas SET usada = TRUE WHERE id = $1', [boleta.id]);
 
-        // 11. Actualizar el estado de la habitación
+        // 12. Actualizar el estado de la habitación
         const estadoHabitacion = (estadoFinal === 'ocupada' || estadoFinal === 'confirmada') ? 'Ocupada' : 'Reservado / Por llegar';
         await client.query('UPDATE habitaciones SET estado = $1 WHERE id = $2', [estadoHabitacion, habitacion_id]);
 
         await client.query('COMMIT');
 
         res.status(201).json({
-            mensaje: '¡Check-In oficial completado con éxito, boleta validada y acompañantes registrados!',
+            mensaje: '¡Check-In oficial completado con éxito, boleta validada y ocupantes registrados!',
             noches: diffDays,
             reserva: reservaCreada
         });
@@ -248,26 +270,28 @@ const obtenerAcompanantesReserva = async (req, res) => {
 // Agregar un nuevo acompañante a una reserva existente y marcar manilla como asignada
 const agregarAcompananteReserva = async (req, res) => {
     const { reserva_id } = req.params;
-    const { nombres, apellidos, documento, manilla, edad, pais, ciudad } = req.body;
+    const { nombres, apellidos, tipo_documento, documento, manilla, edad, pais, ciudad, foto } = req.body;
 
     const client = await db.getClient();
     try {
         await client.query('BEGIN');
 
         const query = `
-            INSERT INTO acompanantes (reserva_id, nombres, apellidos, documento, codigo_manilla, edad, pais, ciudad)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            INSERT INTO acompanantes (reserva_id, nombres, apellidos, tipo_documento, documento, codigo_manilla, edad, pais, ciudad, foto)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING *
         `;
         const values = [
             reserva_id, 
             nombres || '', 
             apellidos || '', 
+            tipo_documento || 'CC',
             documento || '', 
             manilla || '', 
             edad || null, 
             pais || 'COLOMBIA', 
-            ciudad || ''
+            ciudad || '',
+            foto || ''
         ];
 
         const resultado = await client.query(query, values);

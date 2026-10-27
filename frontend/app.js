@@ -606,7 +606,7 @@ async function prepararManillasParaCheckIn() {
   manillasDisponiblesCache = await obtenerManillasDisponibles();
 }
 
-async function agregarFilaAcompanante(nombre = '', doc = '', manilla = '', edad = '', pais = 'COLOMBIA', ciudad = '') {
+async function agregarFilaAcompanante(nombre = '', doc = '', manilla = '', edad = '', pais = 'COLOMBIA', ciudad = '', tipoDoc = 'CC') {
   const contenedor = document.getElementById('contenedor-acompanantes');
   if (!contenedor) return;
 
@@ -619,16 +619,26 @@ async function agregarFilaAcompanante(nombre = '', doc = '', manilla = '', edad 
   const idFila = 'acomp-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
   const div = document.createElement('div');
   div.id = idFila;
-  div.style.cssText = 'display: grid; grid-template-columns: 1.2fr 1.2fr 0.8fr 1fr 1fr 1.5fr 1.5fr 35px; gap: 6px; align-items: center; background: #fff; padding: 8px; border-radius: 4px; border: 1px solid #e0e0e0; font-size: 12px;';
+  div.style.cssText = 'display: grid; grid-template-columns: 0.9fr 1.2fr 0.8fr 0.8fr 1fr 1fr 1.3fr 1.3fr 1.1fr 35px; gap: 5px; align-items: center; background: #fff; padding: 8px; border-radius: 4px; border: 1px solid #e0e0e0; font-size: 11px; margin-bottom: 6px;';
 
   div.innerHTML = `
-    <input type="text" class="acomp-doc" value="${doc}" placeholder="Doc. ID" required style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
+    <select class="acomp-tipo-doc" style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
+      <option value="CC" ${tipoDoc === 'CC' ? 'selected' : ''}>CC</option>
+      <option value="CE" ${tipoDoc === 'CE' ? 'selected' : ''}>CE</option>
+      <option value="PP" ${tipoDoc === 'PP' ? 'selected' : ''}>Pasaporte</option>
+      <option value="TI" ${tipoDoc === 'TI' ? 'selected' : ''}>TI</option>
+    </select>
+    <input type="text" class="acomp-doc" value="${doc}" placeholder="N° Documento" required style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;" title="Escanea aquí con tu lector de código de barras/PDF417">
     <input type="text" class="acomp-manilla" value="${manilla}" placeholder="# Manilla" required style="padding: 5px; border: 1px solid #007bff; border-radius: 3px; font-size: 11px; font-weight: bold; color: #007bff;">
     <input type="number" class="acomp-edad" value="${edad}" placeholder="Edad" style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
     <input type="text" class="acomp-pais" value="${pais}" placeholder="País" style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
     <input type="text" class="acomp-ciudad" value="${ciudad}" placeholder="Ciudad" style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
     <input type="text" class="acomp-nombres" value="${nombre}" placeholder="Nombres" required style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
     <input type="text" class="acomp-apellidos" placeholder="Apellidos" style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
+    
+    <input type="hidden" class="acomp-foto-input" value="">
+    <button type="button" id="btn-foto-${idFila}" onclick="abrirModalCamara('acomp', '${idFila}')" style="background:#17a2b8; color:white; border:none; padding:5px; border-radius:3px; cursor:pointer; font-size:10px; font-weight:bold;">📸 Foto</button>
+
     <button type="button" onclick="document.getElementById('${idFila}').remove()" style="background: #dc3545; color: white; border: none; border-radius: 3px; padding: 5px; cursor: pointer; font-weight: bold;" title="Quitar">✕</button>
   `;
 
@@ -648,13 +658,25 @@ async function abrirModalRecepcionCheckIn(roomId, huespedPreReserva = '', fIngre
   document.getElementById('checkin-op-boleta').value = '';
   document.getElementById('checkin-op-placa').value = '';
   document.getElementById('checkin-op-obs').value = '';
+  document.getElementById('checkin-op-foto-input').value = '';
+  
+  const btnFotoTitular = document.getElementById('btn-foto-titular');
+  if (btnFotoTitular) {
+    btnFotoTitular.innerText = '📸 Foto Titular';
+    btnFotoTitular.style.background = '#17a2b8';
+  }
 
   await prepararManillasParaCheckIn();
+
+  // Asignar manilla sugerida al titular automáticamente
+  const manillaTitularInput = document.getElementById('checkin-op-manilla');
+  if (manillaTitularInput) {
+    manillaTitularInput.value = manillasDisponiblesCache[0] || '';
+  }
 
   const contenedor = document.getElementById('contenedor-acompanantes');
   if (contenedor) {
     contenedor.innerHTML = '';
-    await agregarFilaAcompanante(huespedPreReserva ? huespedPreReserva : '');
   }
 
   const modal = document.getElementById('recepcion-checkin-modal');
@@ -691,17 +713,24 @@ async function guardarCheckInOficial(event) {
   const token = localStorage.getItem('jwt_token');
   const habitacion_id = document.getElementById('checkin-op-room-id').value;
   const nombre = document.getElementById('checkin-op-nombre').value;
+  const tipo_documento_titular = document.getElementById('checkin-op-tipo-doc').value;
   const documento = document.getElementById('checkin-op-documento').value;
+  const manilla_titular = document.getElementById('checkin-op-manilla').value;
+  const foto_titular = document.getElementById('checkin-op-foto-input').value;
   const telefono = document.getElementById('checkin-op-telefono').value;
   const fecha_entrada = document.getElementById('checkin-op-entrada').value;
   const fecha_salida = document.getElementById('checkin-op-salida').value;
   const boleta = document.getElementById('checkin-op-boleta').value;
+  const vehiculo = document.getElementById('checkin-op-vehiculo') ? document.getElementById('checkin-op-vehiculo').value : 'NO';
+  const placa = document.getElementById('checkin-op-placa').value;
+  const observaciones = document.getElementById('checkin-op-obs').value;
   const email = `huesped_${documento}@marinabay.com`;
 
   const filasAcompanantes = document.querySelectorAll('#contenedor-acompanantes > div');
   const acompanantes = [];
 
   filasAcompanantes.forEach(fila => {
+    const aTipoDoc = fila.querySelector('.acomp-tipo-doc').value;
     const aDoc = fila.querySelector('.acomp-doc').value;
     const aManilla = fila.querySelector('.acomp-manilla').value;
     const aEdad = fila.querySelector('.acomp-edad').value;
@@ -709,24 +738,22 @@ async function guardarCheckInOficial(event) {
     const aCiudad = fila.querySelector('.acomp-ciudad').value;
     const aNombres = fila.querySelector('.acomp-nombres').value;
     const aApellidos = fila.querySelector('.acomp-apellidos').value;
+    const aFoto = fila.querySelector('.acomp-foto-input').value;
 
     if (aNombres && aManilla) {
       acompanantes.push({
+        tipo_documento: aTipoDoc,
         documento: aDoc,
         manilla: aManilla,
         edad: aEdad,
         pais: aPais,
         ciudad: aCiudad,
         nombres: aNombres,
-        apellidos: aApellidos
+        apellidos: aApellidos,
+        foto: aFoto
       });
     }
   });
-
-  if (acompanantes.length === 0) {
-    alert('Debes registrar al menos un huésped con su número de manilla asignada.');
-    return;
-  }
 
   try {
     let cliente_id = null;
@@ -737,7 +764,7 @@ async function guardarCheckInOficial(event) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ nombre, email, telefono, documento })
+      body: JSON.stringify({ nombre, email, telefono, documento, tipo_documento: tipo_documento_titular })
     });
 
     const dataCliente = await resCliente.json().catch(() => ({}));
@@ -764,6 +791,12 @@ async function guardarCheckInOficial(event) {
         fecha_salida,
         estado: 'ocupada',
         boleta,
+        vehiculo,
+        placa,
+        observaciones,
+        manilla_titular,
+        tipo_documento_titular,
+        foto_titular,
         huespedes_detalle: acompanantes
       })
     });
@@ -788,7 +821,7 @@ async function guardarCheckInOficial(event) {
       })
     });
 
-    alert('¡Check-In completado exitosamente! Huéspedes y manillas asignados correctamente.');
+    alert('¡Check-In completado exitosamente! Titular, acompañantes y manillas asignados correctamente.');
     closeRecepcionCheckInModal();
     loadRooms();
     loadHistorialReservas();
@@ -805,6 +838,13 @@ async function abrirModalGestionAcompanantes(reservaId, numeroApto) {
   document.getElementById('acomp-modal-title').innerText = `👥 Gestión de Acompañantes & Manillas - Apto ${numeroApto}`;
   document.getElementById('form-nuevo-acompanante').reset();
   document.getElementById('add-acomp-pais').value = 'COLOMBIA';
+  document.getElementById('add-acomp-foto-input').value = '';
+  
+  const btnFotoAdd = document.getElementById('btn-foto-nuevo-acomp');
+  if (btnFotoAdd) {
+    btnFotoAdd.innerText = '📸 Tomar Foto';
+    btnFotoAdd.style.background = '#17a2b8';
+  }
 
   const libres = await obtenerManillasDisponibles();
   document.getElementById('add-acomp-manilla').value = libres[0] || '';
@@ -848,14 +888,15 @@ async function cargarOcupantesActuales(reservaId) {
       }
 
       ocupantes.forEach(o => {
+        const fotoMini = o.foto ? `<img src="${o.foto}" style="width:30px; height:30px; border-radius:50%; object-fit:cover;" title="Con foto">` : 'Sin foto';
         tbody.innerHTML += `
           <tr>
-            <td><strong>${o.documento || 'N/A'}</strong></td>
+            <td><strong>${o.tipo_documento || 'CC'} ${o.documento || 'N/A'}</strong></td>
             <td><strong style="color: #007bff;">📿 #${o.codigo_manilla || o.manilla || 'N/A'}</strong></td>
             <td>${o.nombres || ''} ${o.apellidos || ''}</td>
             <td>${o.edad || 'N/A'}</td>
             <td>${o.pais || 'COLOMBIA'} (${o.ciudad || '-'})</td>
-            <td><small>${o.created_at ? o.created_at.split('T')[0] : 'Check-In'}</small></td>
+            <td>${fotoMini}</td>
           </tr>
         `;
       });
@@ -874,13 +915,15 @@ async function guardarNuevoAcompananteExistente(event) {
   const reserva_id = document.getElementById('acomp-reserva-id').value;
 
   const payload = {
+    tipo_documento: document.getElementById('add-acomp-tipo-doc').value,
     nombres: document.getElementById('add-acomp-nombres').value,
     apellidos: document.getElementById('add-acomp-apellidos').value,
     documento: document.getElementById('add-acomp-doc').value,
     manilla: document.getElementById('add-acomp-manilla').value,
     edad: document.getElementById('add-acomp-edad').value,
     pais: document.getElementById('add-acomp-pais').value,
-    ciudad: document.getElementById('add-acomp-ciudad').value
+    ciudad: document.getElementById('add-acomp-ciudad').value,
+    foto: document.getElementById('add-acomp-foto-input').value
   };
 
   try {
@@ -897,6 +940,7 @@ async function guardarNuevoAcompananteExistente(event) {
       alert('¡Acompañante agregado y manilla asignada con éxito!');
       document.getElementById('form-nuevo-acompanante').reset();
       document.getElementById('add-acomp-pais').value = 'COLOMBIA';
+      document.getElementById('add-acomp-foto-input').value = '';
       
       await cargarOcupantesActuales(reserva_id);
       const libres = await obtenerManillasDisponibles();
@@ -911,6 +955,89 @@ async function guardarNuevoAcompananteExistente(event) {
     console.error('Error al agregar acompañante:', err);
     alert('Error de conexión con el servidor.');
   }
+}
+
+// --- CONTROLADOR DE CÁMARA WEB / FOTOGRAFÍA ---
+let currentVideoElement = null;
+let currentCanvasElement = null;
+let activePhotoInputTarget = null;
+let activePhotoButtonTarget = null;
+
+function abrirModalCamara(tipo, idFila = '') {
+  if (tipo === 'titular') {
+    activePhotoInputTarget = document.getElementById('checkin-op-foto-input');
+    activePhotoButtonTarget = document.getElementById('btn-foto-titular');
+  } else if (tipo === 'nuevo-acomp') {
+    activePhotoInputTarget = document.getElementById('add-acomp-foto-input');
+    activePhotoButtonTarget = document.getElementById('btn-foto-nuevo-acomp');
+  } else if (tipo === 'acomp') {
+    const fila = document.getElementById(idFila);
+    if (fila) {
+      activePhotoInputTarget = fila.querySelector('.acomp-foto-input');
+      activePhotoButtonTarget = fila.querySelector(`#btn-foto-${idFila}`);
+    }
+  }
+
+  let modalCam = document.getElementById('modal-camara-captura');
+  if (!modalCam) {
+    modalCam = document.createElement('div');
+    modalCam.id = 'modal-camara-captura';
+    modalCam.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:flex; justify-content:center; align-items:center; z-index:9999;';
+    modalCam.innerHTML = `
+      <div style="background:#fff; padding:20px; border-radius:8px; text-align:center; max-width:400px; width:100%;">
+        <h3>Tomar Fotografía del Huésped</h3>
+        <video id="cam-preview" autoplay playsinline style="width:100%; height:250px; background:#000; border-radius:4px; object-fit:cover;"></video>
+        <canvas id="cam-canvas" style="display:none;"></canvas>
+        <div style="margin-top:15px; display:flex; justify-content:space-around;">
+          <button type="button" onclick="capturarFotoReal()" style="background:#28a745; color:#fff; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">📸 Capturar</button>
+          <button type="button" onclick="cerrarModalCamara()" style="background:#dc3545; color:#fff; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">❌ Cancelar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modalCam);
+  } else {
+    modalCam.style.display = 'flex';
+  }
+
+  currentVideoElement = document.getElementById('cam-preview');
+  currentCanvasElement = document.getElementById('cam-canvas');
+
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
+    .then(stream => {
+      currentVideoElement.srcObject = stream;
+    })
+    .catch(err => {
+      alert('No se pudo acceder a la cámara: ' + err.message);
+      cerrarModalCamara();
+    });
+}
+
+function capturarFotoReal() {
+  if (!currentVideoElement || !currentCanvasElement || !activePhotoInputTarget) return;
+
+  const context = currentCanvasElement.getContext('2d');
+  currentCanvasElement.width = currentVideoElement.videoWidth || 320;
+  currentCanvasElement.height = currentVideoElement.videoHeight || 240;
+  context.drawImage(currentVideoElement, 0, 0, currentCanvasElement.width, currentCanvasElement.height);
+
+  const dataURL = currentCanvasElement.toDataURL('image/jpeg', 0.8);
+  activePhotoInputTarget.value = dataURL;
+
+  if (activePhotoButtonTarget) {
+    activePhotoButtonTarget.innerText = '✅ Foto Lista';
+    activePhotoButtonTarget.style.background = '#28a745';
+  }
+
+  cerrarModalCamara();
+}
+
+function cerrarModalCamara() {
+  if (currentVideoElement && currentVideoElement.srcObject) {
+    let tracks = currentVideoElement.srcObject.getTracks();
+    tracks.forEach(track => track.stop());
+  }
+  const modalCam = document.getElementById('modal-camara-captura');
+  if (modalCam) modalCam.style.display = 'none';
 }
 
 // --- MÓDULO DE INVENTARIO MASIVO ---
