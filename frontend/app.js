@@ -829,7 +829,9 @@ function closeGestionAcompanantesModal() {
 async function cargarOcupantesActuales(reservaId) {
   const token = localStorage.getItem('jwt_token');
   const tbody = document.getElementById('tabla-ocupantes-actuales');
-  tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 10px;">Cargando acompañantes...</td></tr>';
+  if (!tbody) return;
+
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 15px; color: #666;">Cargando acompañantes...</td></tr>';
 
   try {
     const res = await fetch(`${API_URL}/reservas/${reservaId}/acompanantes`, {
@@ -840,8 +842,8 @@ async function cargarOcupantesActuales(reservaId) {
       const ocupantes = await res.json();
       tbody.innerHTML = '';
 
-      if (ocupantes.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 10px; color: #666;">No hay acompañantes adicionales registrados.</td></tr>';
+      if (!ocupantes || ocupantes.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 15px; color: #666;">No hay acompañantes adicionales registrados.</td></tr>';
         return;
       }
 
@@ -849,7 +851,7 @@ async function cargarOcupantesActuales(reservaId) {
         tbody.innerHTML += `
           <tr>
             <td><strong>${o.documento || 'N/A'}</strong></td>
-            <td><strong style="color: #007bff;">📿 #${o.codigo_manilla || o.manilla}</strong></td>
+            <td><strong style="color: #007bff;">📿 #${o.codigo_manilla || o.manilla || 'N/A'}</strong></td>
             <td>${o.nombres || ''} ${o.apellidos || ''}</td>
             <td>${o.edad || 'N/A'}</td>
             <td>${o.pais || 'COLOMBIA'} (${o.ciudad || '-'})</td>
@@ -857,10 +859,12 @@ async function cargarOcupantesActuales(reservaId) {
           </tr>
         `;
       });
+    } else {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 15px; color: #e53e3e;">No se pudo cargar la lista de acompañantes.</td></tr>';
     }
   } catch (err) {
     console.error('Error al obtener acompañantes:', err);
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 10px; color: red;">Error al consultar lista de acompañantes.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 15px; color: #e53e3e;">Error de conexión con el servidor.</td></tr>';
   }
 }
 

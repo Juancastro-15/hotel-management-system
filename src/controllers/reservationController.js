@@ -149,7 +149,7 @@ const crearReserva = async (req, res) => {
 
         const reservaCreada = nuevaReserva.rows[0];
 
-        // 9. Guardar los acompañantes detallados (si se enviaron)
+        // 9. Guardar los acompañantes detallados y actualizar estado de manillas a 'asignada'
         if (huespedes_detalle && Array.isArray(huespedes_detalle) && huespedes_detalle.length > 0) {
             for (const acomp of huespedes_detalle) {
                 await client.query(
@@ -167,12 +167,11 @@ const crearReserva = async (req, res) => {
                     ]
                 );
 
-                // Marcar la manilla como asignada en el inventario si existe
                 if (acomp.manilla) {
                     await client.query(
                         `UPDATE manillas SET estado = 'asignada' WHERE codigo_manilla = $1`,
                         [acomp.manilla]
-                    ).catch(() => {});
+                    );
                 }
             }
         }
@@ -237,7 +236,7 @@ const actualizarEstadoReserva = async (req, res) => {
 const obtenerAcompanantesReserva = async (req, res) => {
     const { reserva_id } = req.params;
     try {
-        const query = `SELECT * FROM acompanantes WHERE reserva_id = $1`;
+        const query = `SELECT * FROM acompanantes WHERE reserva_id = $1 ORDER BY id ASC`;
         const resultado = await db.query(query, [reserva_id]);
         res.json(resultado.rows);
     } catch (error) {
@@ -246,12 +245,15 @@ const obtenerAcompanantesReserva = async (req, res) => {
     }
 };
 
-// Agregar un nuevo acompañante a una reserva existente
+// Agregar un nuevo acompañante a una reserva existente y marcar manilla como asignada
 const agregarAcompananteReserva = async (req, res) => {
     const { reserva_id } = req.params;
     const { nombres, apellidos, documento, manilla, edad, pais, ciudad } = req.body;
 
+    const client = await db.getClient();
     try {
+        await client.query('BEGIN');
+
         const query = `
             INSERT INTO acompanantes (reserva_id, nombres, apellidos, documento, codigo_manilla, edad, pais, ciudad)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -268,22 +270,27 @@ const agregarAcompananteReserva = async (req, res) => {
             ciudad || ''
         ];
 
-        const resultado = await db.query(query, values);
+        const resultado = await client.query(query, values);
 
         if (manilla) {
-            await db.query(
+            await client.query(
                 `UPDATE manillas SET estado = 'asignada' WHERE codigo_manilla = $1`,
                 [manilla]
-            ).catch(() => {});
+            );
         }
 
+        await client.query('COMMIT');
+
         res.status(201).json({
-            mensaje: 'Acompañante agregado exitosamente',
+            mensaje: 'Acompañante agregado y manilla actualizada exitosamente',
             acompanante: resultado.rows[0]
         });
     } catch (error) {
+        await client.query('ROLLBACK');
         console.error('Error al agregar acompañante:', error);
         res.status(500).json({ error: 'Error al registrar el acompañante en la base de datos.' });
+    } finally {
+        client.release();
     }
 };
 
