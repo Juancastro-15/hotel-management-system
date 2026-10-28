@@ -582,55 +582,91 @@ async function cancelarPreReserva(id, numeroApto) {
 
 // --- PARSER DE ESCÁNER PDF417 / CÉDULAS COLOMBIANAS ---
 
-function procesarEscaneoCedula(texto, target) {
-  if (!texto || texto.length < 15) return;
+function procesarEscaneoCedula(textoRaw, target) {
+  if (!textoRaw || textoRaw.length < 10) return;
+
+  // Limpiar saltos de línea y espacios de más que envía el escáner
+  const texto = textoRaw.replace(/[\r\n\t]/g, ' ').trim();
 
   let doc = '', ap1 = '', ap2 = '', nom1 = '', nom2 = '', gn = '', fdn = '', rh = '';
 
-  // 1. Intentar lectura formato tradicional PDF417
-  const regexCC = /([0-9]{8,10})([A-ZÁÉÍÓÚÑ]+)\b\s*([A-ZÁÉÍÓÚÑ]+)\b\s*([A-ZÁÉÍÓÚÑ]+)\b\s*([A-ZÁÉÍÓÚÑ]*)\b\s*([MF])([0-9]{8})([0-9A-Z+-]{2,3})/;
-  let match = texto.match(regexCC);
-
-  if (match) {
-    doc = match[1];
-    ap1 = match[2];
-    ap2 = match[3];
-    nom1 = match[4];
-    nom2 = match[5] || '';
-    gn = match[6];
-    const rawFdn = match[7]; // AAAAMMDD
-    if (rawFdn && rawFdn.length === 8) {
-      fdn = `${rawFdn.substring(6, 8)}/${rawFdn.substring(4, 6)}/${rawFdn.substring(0, 4)}`;
-    }
-    rh = match[8];
-  } else {
-    // 2. Parser adaptativo para la CÉDULA NUEVA / FORMATO DIGITAL (Policarbonato)
-    // Limpiamos caracteres de control y separamos por espacios o tabulaciones del lector
-    const limpia = texto.replace(/[\x00-\x1F\x7F-\xFF]/g, ' ').trim();
-    const tokens = limpia.split(/\s+/).filter(t => t.length > 0);
-
-    // Buscar el número de cédula (usualmente de 8 a 10 dígitos)
-    const idxDoc = tokens.findIndex(t => /^[0-9]{8,10}$/.test(t));
-    if (idxDoc !== -1) {
-      doc = tokens[idxDoc];
-      // En la cédula nueva, los apellidos y nombres suelen venir justo después del número
-      const palabrasTexto = tokens.slice(idxDoc + 1).filter(t => /^[A-ZÁÉÍÓÚÑ]+$/i.test(t));
-      if (palabrasTexto.length >= 2) {
-        ap1 = palabrasTexto[0] || '';
-        ap2 = palabrasTexto[1] || '';
-        nom1 = palabrasTexto[2] || '';
-        nom2 = palabrasTexto[3] || '';
-      }
+  // =========================================================================
+  // CASO 1: CÉDULA NUEVA / FORMATO DIGITAL O PASAPORTE (ZONA MRZ CON SÍMBOLOS '<')
+  // =========================================================================
+  if (texto.includes('<') || texto.includes('ICCOL')) {
+    
+    // 1. Extraer limpiamente el Número de Documento (Busca secuencia numérica de 8 a 10 dígitos)
+    const matchesNumeros = texto.match(/\b([0-9]{8,10})\b/g);
+    if (matchesNumeros && matchesNumeros.length > 0) {
+      // El primer número largo suele ser el documento de identidad
+      doc = matchesNumeros[0];
     } else {
-      // Fallback genérico por si el lector arroja todo en bloque continuo
-      const partes = texto.split(/[\n\r\t|]/).map(p => p.trim()).filter(p => p.length > 0);
-      if (partes.length > 0) {
-        doc = partes.find(p => /^[0-9]{8,10}$/.test(p)) || partes[0];
+      const matchDocMRZ = texto.match(/ICCOL([0-9]{8,10})/i) || texto.match(/COL([0-9]{8,10})/i);
+      if (matchDocMRZ) doc = matchDocMRZ[1];
+    }
+
+    // 2. Extraer Nombres y Apellidos del formato MARTINEZ<GARCIA<<MARIA<DANIELA
+    const matchNombresMRZ = texto.match(/([A-ZÁÉÍÓÚÑ]+)<([A-ZÁÉÍÓÚÑ]+)<<([A-ZÁÉÍÓÚÑ]+)<([A-ZÁÉÍÓÚÑ]+)/i) ||
+                            texto.match(/([A-ZÁÉÍÓÚÑ]+)<([A-ZÁÉÍÓÚÑ]+)<<([A-ZÁÉÍÓÚÑ]+)/i);
+
+    if (matchNombresMRZ) {
+      ap1 = matchNombresMRZ[1] || '';
+      ap2 = matchNombresMRZ[2] || '';
+      nom1 = matchNombresMRZ[3] || '';
+      nom2 = matchNombresMRZ[4] || '';
+    } else {
+      const partesMRZ = texto.split('<<');
+      if (partesMRZ.length >= 2) {
+        const aps = partesMRZ[0].split('<').filter(Boolean);
+        const noms = partesMRZ[1].split('<').filter(Boolean);
+        ap1 = aps[aps.length - 2] || aps[0] || '';
+        ap2 = aps[aps.length - 1] || '';
+        nom1 = noms[0] || '';
+        nom2 = noms[1] || '';
       }
+    }
+
+    // 3. Extraer Fecha de Nacimiento (6 dígitos YYMMDD) y Género (F / M)
+    const matchFechaMRZ = texto.match(/([0-9]{6})([0-9])([FM])/i);
+    if (matchFechaMRZ) {
+      const rawYYMMDD = matchFechaMRZ[1];
+      gn = matchFechaMRZ[3].toUpperCase();
+
+      const yy = parseInt(rawYYMMDD.substring(0, 2));
+      const mm = rawYYMMDD.substring(2, 4);
+      const dd = rawYYMMDD.substring(4, 6);
+
+      const anioFull = (yy > 26 ? '19' : '20') + (yy < 10 ? '0' + yy : yy);
+      fdn = `${dd}/${mm}/${anioFull}`;
+    }
+
+  } 
+  // =========================================================================
+  // CASO 2: CÉDULA ANTIGUA (PDF417 TRADICIONAL)
+  // =========================================================================
+  else {
+    const regexCC = /([0-9]{8,10})([A-ZÁÉÍÓÚÑ]+)\b\s*([A-ZÁÉÍÓÚÑ]+)\b\s*([A-ZÁÉÍÓÚÑ]+)\b\s*([A-ZÁÉÍÓÚÑ]*)\b\s*([MF])([0-9]{8})([0-9A-Z+-]{2,3})/;
+    const match = texto.match(regexCC);
+
+    if (match) {
+      doc = match[1];
+      ap1 = match[2];
+      ap2 = match[3];
+      nom1 = match[4];
+      nom2 = match[5] || '';
+      gn = match[6];
+      
+      const rawFdn = match[7]; // AAAAMMDD
+      if (rawFdn && rawFdn.length === 8) {
+        fdn = `${rawFdn.substring(6, 8)}/${rawFdn.substring(4, 6)}/${rawFdn.substring(0, 4)}`;
+      }
+      rh = match[8];
     }
   }
 
-  // Rellenar campos dependiendo si es el Titular o un Acompañante
+  // =========================================================================
+  // ASIGNACIÓN AUTOMÁTICA A LOS CAMPOS DE LA INTERFAZ
+  // =========================================================================
   if (target === 'titular') {
     if (doc) document.getElementById('checkin-op-documento').value = doc;
     if (ap1) document.getElementById('checkin-op-apellido1').value = ap1;
