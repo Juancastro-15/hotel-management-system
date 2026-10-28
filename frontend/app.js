@@ -580,6 +580,73 @@ async function cancelarPreReserva(id, numeroApto) {
   }
 }
 
+// --- PARSER DE ESCÁNER PDF417 / CÉDULAS COLOMBIANAS ---
+
+function procesarEscaneoCedula(texto, target) {
+  if (!texto || texto.length < 35) return;
+
+  let doc = '', ap1 = '', ap2 = '', nom1 = '', nom2 = '', gn = '', fdn = '', rh = '';
+
+  // Expresión regular para capturar la estructura estándar de códigos de barras PDF417 de la Registraduría
+  const regexCC = /([0-9]{8,10})([A-ZÁÉÍÓÚÑ]+)\b\s*([A-ZÁÉÍÓÚÑ]+)\b\s*([A-ZÁÉÍÓÚÑ]+)\b\s*([A-ZÁÉÍÓÚÑ]*)\b\s*([MF])([0-9]{8})([0-9A-Z+-]{2,3})/;
+  const match = texto.match(regexCC);
+
+  if (match) {
+    doc = match[1];
+    ap1 = match[2];
+    ap2 = match[3];
+    nom1 = match[4];
+    nom2 = match[5] || '';
+    gn = match[6];
+    
+    const rawFdn = match[7]; // AAAAMMDD
+    if (rawFdn && rawFdn.length === 8) {
+      const a = rawFdn.substring(0, 4);
+      const m = rawFdn.substring(4, 6);
+      const d = rawFdn.substring(6, 8);
+      fdn = `${d}/${m}/${a}`;
+    }
+
+    rh = match[8];
+  } else {
+    // Parser fallback por división de caracteres no alfanuméricos
+    const partes = texto.split(/[\x00-\x1F\x7F-\xFF]/).filter(p => p.trim().length > 0);
+    if (partes.length >= 5) {
+      doc = partes.find(p => /^[0-9]{8,10}$/.test(p.trim())) || '';
+      const palabras = partes.filter(p => /^[A-ZÁÉÍÓÚÑ\s]+$/i.test(p.trim()));
+      if (palabras.length >= 3) {
+        ap1 = palabras[0].trim();
+        ap2 = palabras[1].trim();
+        nom1 = palabras[2].trim();
+        nom2 = palabras[3] ? palabras[3].trim() : '';
+      }
+    }
+  }
+
+  if (target === 'titular') {
+    if (doc) document.getElementById('checkin-op-documento').value = doc;
+    if (ap1) document.getElementById('checkin-op-apellido1').value = ap1;
+    if (ap2) document.getElementById('checkin-op-apellido2').value = ap2;
+    if (nom1) document.getElementById('checkin-op-nombre1').value = nom1;
+    if (nom2) document.getElementById('checkin-op-nombre2').value = nom2;
+    if (gn) document.getElementById('checkin-op-gn').value = gn;
+    if (fdn) document.getElementById('checkin-op-fdn').value = fdn;
+    if (rh) document.getElementById('checkin-op-rh').value = rh;
+  } else if (typeof target === 'string' && target.startsWith('acomp-')) {
+    const fila = document.getElementById(target);
+    if (fila) {
+      if (doc) fila.querySelector('.acomp-doc').value = doc;
+      if (ap1) fila.querySelector('.acomp-apellido1').value = ap1;
+      if (ap2) fila.querySelector('.acomp-apellido2').value = ap2;
+      if (nom1) fila.querySelector('.acomp-nombre1').value = nom1;
+      if (nom2) fila.querySelector('.acomp-nombre2').value = nom2;
+      if (gn) fila.querySelector('.acomp-gn').value = gn;
+      if (fdn) fila.querySelector('.acomp-fdn').value = fdn;
+      if (rh) fila.querySelector('.acomp-rh').value = rh;
+    }
+  }
+}
+
 // --- AUTO-SUGERENCIA DE MANILLAS Y GESTIÓN DINÁMICA DE INTEGRANTES ---
 
 async function obtenerManillasDisponibles() {
@@ -606,7 +673,7 @@ async function prepararManillasParaCheckIn() {
   manillasDisponiblesCache = await obtenerManillasDisponibles();
 }
 
-async function agregarFilaAcompanante(nombre = '', apellidos = '', doc = '', manilla = '', edad = '', pais = 'COLOMBIA', ciudad = '', tipoDoc = 'CC', gn = '', fdn = '', rh = '', tel = '') {
+async function agregarFilaAcompanante(nom1 = '', nom2 = '', ap1 = '', ap2 = '', doc = '', manilla = '', pais = 'COLOMBIA', ciudad = '', tipoDoc = 'CC', gn = '', fdn = '', rh = '', tel = '') {
   const contenedor = document.getElementById('contenedor-acompanantes');
   if (!contenedor) return;
 
@@ -621,7 +688,7 @@ async function agregarFilaAcompanante(nombre = '', apellidos = '', doc = '', man
 
   const div = document.createElement('div');
   div.id = idFila;
-  div.style.cssText = 'display: grid; grid-template-columns: 45px 1.2fr 1.5fr 1.5fr 1.5fr 0.6fr 1.1fr 0.7fr 1.2fr 1fr 1fr 1.1fr auto; gap: 5px; align-items: center; background: #fff; padding: 6px; border-radius: 4px; border: 1px solid #e0e0e0; font-size: 11px; margin-bottom: 6px;';
+  div.style.cssText = 'display: grid; grid-template-columns: 45px 1.1fr 1.4fr 1.2fr 1.2fr 1.2fr 1.2fr 0.6fr 1.1fr 0.7fr 1.1fr 1fr 1fr 1.1fr auto; gap: 5px; align-items: center; background: #fff; padding: 6px; border-radius: 4px; border: 1px solid #e0e0e0; font-size: 11px; margin-bottom: 6px;';
 
   div.innerHTML = `
     <div style="background: #6f42c1; color: white; text-align: center; font-weight: bold; padding: 6px 0; border-radius: 4px; font-size: 11px;">${totalFilas}</div>
@@ -635,11 +702,13 @@ async function agregarFilaAcompanante(nombre = '', apellidos = '', doc = '', man
       <option value="DE" ${tipoDoc === 'DE' ? 'selected' : ''}>DE</option>
       <option value="RC" ${tipoDoc === 'RC' ? 'selected' : ''}>RC</option>
     </select>
-    <input type="text" class="acomp-doc" value="${doc}" placeholder="Identificación" required style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
-    <input type="text" class="acomp-apellidos" value="${apellidos}" placeholder="Apellidos" required style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
-    <input type="text" class="acomp-nombres" value="${nombre}" placeholder="Nombres" required style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
+    <input type="text" class="acomp-doc" value="${doc}" oninput="procesarEscaneoCedula(this.value, '${idFila}')" placeholder="N° Doc / Escáner" required style="padding: 5px; border: 1px solid #007bff; border-radius: 3px; font-size: 11px;">
+    <input type="text" class="acomp-apellido1" value="${ap1}" placeholder="1er Apellido" required style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
+    <input type="text" class="acomp-apellido2" value="${ap2}" placeholder="2do Apellido" style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
+    <input type="text" class="acomp-nombre1" value="${nom1}" placeholder="1er Nombre" required style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
+    <input type="text" class="acomp-nombre2" value="${nom2}" placeholder="2do Nombre" style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
     <input type="text" class="acomp-gn" value="${gn}" placeholder="F/M" maxlength="1" style="padding: 5px; text-align:center; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
-    <input type="date" class="acomp-fdn" value="${fdn}" style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 9px;">
+    <input type="text" class="acomp-fdn" value="${fdn}" placeholder="DD/MM/AAAA" style="padding: 5px; text-align:center; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
     <input type="text" class="acomp-rh" value="${rh}" placeholder="O+" style="padding: 5px; text-align:center; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
     <input type="text" class="acomp-pais" value="${pais}" placeholder="País" style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
     <input type="text" class="acomp-ciudad" value="${ciudad}" placeholder="Ciudad" style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
@@ -663,13 +732,18 @@ async function abrirModalRecepcionCheckIn(roomId, huespedPreReserva = '', fIngre
   };
 
   setVal('checkin-op-room-id', roomId);
-  setVal('checkin-op-nombre', huespedPreReserva);
   
+  // Si viene una cadena compuesta, intentamos rellenar los nombres desglosados
+  const partesNom = (huespedPreReserva || '').trim().split(' ');
+  setVal('checkin-op-nombre1', partesNom[0] || '');
+  setVal('checkin-op-nombre2', partesNom[1] || '');
+  setVal('checkin-op-apellido1', partesNom[2] || '');
+  setVal('checkin-op-apellido2', partesNom[3] || '');
+
   const hoy = new Date().toISOString().split('T')[0];
   setVal('checkin-op-entrada', fIngreso || hoy);
   setVal('checkin-op-salida', fSalida || hoy);
   setVal('checkin-op-documento', '');
-  setVal('checkin-op-apellidos', '');
   setVal('checkin-op-gn', '');
   setVal('checkin-op-fdn', '');
   setVal('checkin-op-rh', '');
@@ -737,9 +811,13 @@ async function guardarCheckInOficial(event) {
 
   const token = localStorage.getItem('jwt_token');
   const habitacion_id = getVal('checkin-op-room-id');
-  const nombres = getVal('checkin-op-nombre');
-  const apellidos = getVal('checkin-op-apellidos');
-  const nombreCompleto = `${nombres} ${apellidos}`.trim();
+  
+  const nom1 = getVal('checkin-op-nombre1');
+  const nom2 = getVal('checkin-op-nombre2');
+  const ap1 = getVal('checkin-op-apellido1');
+  const ap2 = getVal('checkin-op-apellido2');
+  
+  const nombreCompleto = `${nom1} ${nom2} ${ap1} ${ap2}`.replace(/\s+/g, ' ').trim();
   const tipo_documento_titular = getVal('checkin-op-tipo-doc') || 'CC';
   const documento = getVal('checkin-op-documento');
   const manilla_titular = getVal('checkin-op-manilla');
@@ -762,23 +840,32 @@ async function guardarCheckInOficial(event) {
     const aManilla = fila.querySelector('.acomp-manilla') ? fila.querySelector('.acomp-manilla').value : '';
     const aPais = fila.querySelector('.acomp-pais') ? fila.querySelector('.acomp-pais').value : 'COLOMBIA';
     const aCiudad = fila.querySelector('.acomp-ciudad') ? fila.querySelector('.acomp-ciudad').value : '';
-    const aNombres = fila.querySelector('.acomp-nombres') ? fila.querySelector('.acomp-nombres').value : '';
-    const aApellidos = fila.querySelector('.acomp-apellidos') ? fila.querySelector('.acomp-apellidos').value : '';
+    const aNom1 = fila.querySelector('.acomp-nombre1') ? fila.querySelector('.acomp-nombre1').value : '';
+    const aNom2 = fila.querySelector('.acomp-nombre2') ? fila.querySelector('.acomp-nombre2').value : '';
+    const aAp1 = fila.querySelector('.acomp-apellido1') ? fila.querySelector('.acomp-apellido1').value : '';
+    const aAp2 = fila.querySelector('.acomp-apellido2') ? fila.querySelector('.acomp-apellido2').value : '';
     const aGn = fila.querySelector('.acomp-gn') ? fila.querySelector('.acomp-gn').value : '';
     const aFdn = fila.querySelector('.acomp-fdn') ? fila.querySelector('.acomp-fdn').value : '';
     const aRh = fila.querySelector('.acomp-rh') ? fila.querySelector('.acomp-rh').value : '';
     const aTel = fila.querySelector('.acomp-tel') ? fila.querySelector('.acomp-tel').value : '';
     const aFoto = fila.querySelector('.acomp-foto-input') ? fila.querySelector('.acomp-foto-input').value : '';
 
-    if (aNombres && aManilla) {
+    const aNombresComp = `${aNom1} ${aNom2}`.trim();
+    const aApellidosComp = `${aAp1} ${aAp2}`.trim();
+
+    if (aNom1 && aManilla) {
       acompanantes.push({
         tipo_documento: aTipoDoc,
         documento: aDoc,
         manilla: aManilla,
         pais: aPais,
         ciudad: aCiudad,
-        nombres: aNombres,
-        apellidos: aApellidos,
+        primer_nombre: aNom1,
+        segundo_nombre: aNom2,
+        primer_apellido: aAp1,
+        segundo_apellido: aAp2,
+        nombres: aNombresComp,
+        apellidos: aApellidosComp,
         genero: aGn,
         fecha_nacimiento: aFdn,
         rh: aRh,
@@ -1061,7 +1148,7 @@ function abrirModalCamara(tipo, idFila = '') {
       if (currentVideoElement) currentVideoElement.srcObject = stream;
     })
     .catch(err => {
-      alert('No se pudo acceder à la cámara: ' + err.message);
+      alert('No se pudo acceder a la cámara: ' + err.message);
       cerrarModalCamara();
     });
 }

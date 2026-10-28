@@ -492,9 +492,9 @@
     </div>
   </div>
 
-  <!-- CHECK-IN OPERATIVO COMPLETO (AMPLIADO Y CON LETRAS MÁS GRANDES) -->
+  <!-- CHECK-IN OPERATIVO COMPLETO (AMPLIADO, CON CAMPOS DESGLOSADOS Y F.D.N EN TEXTO) -->
   <div id="recepcion-checkin-modal" class="modal hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 2000;">
-    <div class="modal-content" style="background: white; padding: 30px; border-radius: 12px; width: 1250px; max-width: 98vw; max-height: 96vh; overflow-y: auto; box-shadow: 0 8px 30px rgba(0,0,0,0.35);">
+    <div class="modal-content" style="background: white; padding: 30px; border-radius: 12px; width: 1350px; max-width: 98vw; max-height: 96vh; overflow-y: auto; box-shadow: 0 8px 30px rgba(0,0,0,0.35);">
       
       <div style="background: #28a745; color: white; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; font-weight: bold; font-size: 18px; display: flex; justify-content: space-between; align-items: center;">
         <span>🏢 Check-In Operativo - Registro de Titular, Acompañantes, Manillas y Fotos</span>
@@ -504,18 +504,18 @@
       <form id="recepcion-checkin-form" onsubmit="guardarCheckInOficial(event)">
         <input type="hidden" id="checkin-op-room-id">
 
-        <!-- Titular Principal con campos y letras ampliadas -->
+        <!-- Titular Principal con campos de Apellidos y Nombres desglosados y F.D.N en formato DD/MM/AAAA -->
         <fieldset style="border: 2px solid #dcdcdc; padding: 18px; border-radius: 8px; margin-bottom: 20px; background: #fafafa;">
           <legend style="font-weight: bold; color: #007bff; padding: 0 8px; font-size: 15px;">👤 Titular Principal del Registro</legend>
           
-          <div style="display: grid; grid-template-columns: 50px 1.3fr 1.6fr 1.6fr 1.6fr 0.7fr 1.2fr 0.8fr 1.3fr 1.1fr 1.1fr 1.2fr auto; gap: 8px; align-items: center; overflow-x: auto;">
+          <div style="display: grid; grid-template-columns: 45px 1.1fr 1.4fr 1.2fr 1.2fr 1.2fr 1.2fr 0.6fr 1.1fr 0.7fr 1.1fr 1fr 1fr 1.1fr auto; gap: 6px; align-items: center; overflow-x: auto;">
             <div>
               <label style="font-size: 11px; font-weight: bold; color: #444;">#</label>
               <div style="background: #28a745; color: white; text-align: center; font-weight: bold; padding: 9px 0; border-radius: 6px; font-size: 14px;">1</div>
             </div>
             <div>
               <label style="font-size: 11px; font-weight: bold; color: #444;">DOC</label>
-              <select id="checkin-op-tipo-doc" style="width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 13px;">
+              <select id="checkin-op-tipo-doc" style="width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 6px; font-size: 12px;">
                 <option value="CC">CC</option>
                 <option value="CC | NUEVO FORMATO">CC | NUEVO FORMATO</option>
                 <option value="CE">CE</option>
@@ -527,44 +527,52 @@
               </select>
             </div>
             <div>
-              <label style="font-size: 11px; font-weight: bold; color: #444;">IDENTIFICACION</label>
-              <input type="text" id="checkin-op-documento" required placeholder="N° Documento" style="width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 13px;" title="Escanea aquí con tu lector de código de barras/PDF417">
+              <label style="font-size: 11px; font-weight: bold; color: #444;">IDENTIFICACIÓN</label>
+              <input type="text" id="checkin-op-documento" oninput="procesarEscaneoCedula(this.value, 'titular')" required placeholder="N° Documento / Escáner" style="width: 100%; padding: 9px; border: 1px solid #007bff; border-radius: 6px; font-size: 12px;" title="Escanea aquí con tu lector PDF417">
             </div>
             <div>
-              <label style="font-size: 11px; font-weight: bold; color: #444;">APELLIDOS</label>
-              <input type="text" id="checkin-op-apellidos" required placeholder="Apellidos" style="width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 13px;">
+              <label style="font-size: 11px; font-weight: bold; color: #444;">1ER APELLIDO</label>
+              <input type="text" id="checkin-op-apellido1" required placeholder="1er Apellido" style="width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 6px; font-size: 12px;">
             </div>
             <div>
-              <label style="font-size: 11px; font-weight: bold; color: #444;">NOMBRES</label>
-              <input type="text" id="checkin-op-nombre" required placeholder="Nombres" style="width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 13px;">
+              <label style="font-size: 11px; font-weight: bold; color: #444;">2DO APELLIDO</label>
+              <input type="text" id="checkin-op-apellido2" placeholder="2do Apellido" style="width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 6px; font-size: 12px;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold; color: #444;">1ER NOMBRE</label>
+              <input type="text" id="checkin-op-nombre1" required placeholder="1er Nombre" style="width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 6px; font-size: 12px;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold; color: #444;">2DO NOMBRE</label>
+              <input type="text" id="checkin-op-nombre2" placeholder="2do Nombre" style="width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 6px; font-size: 12px;">
             </div>
             <div>
               <label style="font-size: 11px; font-weight: bold; color: #444;">GN</label>
-              <input type="text" id="checkin-op-gn" placeholder="F/M" maxlength="1" style="width: 100%; padding: 9px; text-align: center; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 13px;">
+              <input type="text" id="checkin-op-gn" placeholder="F/M" maxlength="1" style="width: 100%; padding: 9px; text-align: center; border: 1px solid #ccc; border-radius: 6px; font-size: 12px;">
             </div>
             <div>
               <label style="font-size: 11px; font-weight: bold; color: #444;">F D N</label>
-              <input type="date" id="checkin-op-fdn" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 11px;">
+              <input type="text" id="checkin-op-fdn" placeholder="DD/MM/AAAA" style="width: 100%; padding: 9px; text-align: center; border: 1px solid #ccc; border-radius: 6px; font-size: 12px;">
             </div>
             <div>
               <label style="font-size: 11px; font-weight: bold; color: #444;">RH</label>
-              <input type="text" id="checkin-op-rh" placeholder="O+" style="width: 100%; padding: 9px; text-align: center; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 13px;">
+              <input type="text" id="checkin-op-rh" placeholder="O+" style="width: 100%; padding: 9px; text-align: center; border: 1px solid #ccc; border-radius: 6px; font-size: 12px;">
             </div>
             <div>
-              <label style="font-size: 11px; font-weight: bold; color: #444;">PAIS</label>
-              <input type="text" id="checkin-op-pais" value="COLOMBIA" style="width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 13px;">
+              <label style="font-size: 11px; font-weight: bold; color: #444;">PAÍS</label>
+              <input type="text" id="checkin-op-pais" value="COLOMBIA" style="width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 6px; font-size: 12px;">
             </div>
             <div>
               <label style="font-size: 11px; font-weight: bold; color: #444;">CIUDAD</label>
-              <input type="text" id="checkin-op-ciudad" placeholder="Ciudad" style="width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 13px;">
+              <input type="text" id="checkin-op-ciudad" placeholder="Ciudad" style="width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 6px; font-size: 12px;">
             </div>
             <div>
               <label style="font-size: 11px; font-weight: bold; color: #444;"># M</label>
-              <input type="text" id="checkin-op-manilla" required placeholder="Manilla" style="width: 100%; padding: 9px; border: 2px solid #007bff; font-weight: bold; color: #007bff; border-radius: 6px; box-sizing: border-box; font-size: 13px;">
+              <input type="text" id="checkin-op-manilla" required placeholder="Manilla" style="width: 100%; padding: 9px; border: 2px solid #007bff; font-weight: bold; color: #007bff; border-radius: 6px; font-size: 12px;">
             </div>
             <div>
               <label style="font-size: 11px; font-weight: bold; color: #444;">TEL</label>
-              <input type="text" id="checkin-op-telefono" required placeholder="Teléfono" style="width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 13px;">
+              <input type="text" id="checkin-op-telefono" required placeholder="Teléfono" style="width: 100%; padding: 9px; border: 1px solid #ccc; border-radius: 6px; font-size: 12px;">
             </div>
             <div>
               <label style="font-size: 11px; font-weight: bold; color: #444; display:block;">Datos</label>
