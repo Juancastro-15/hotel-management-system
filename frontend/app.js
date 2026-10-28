@@ -3,6 +3,7 @@ const API_URL = 'https://hotel-management-system-dun5.onrender.com/api';
 let allRooms = []; 
 let allUsers = [];
 let manillasDisponiblesCache = [];
+let pestanaVisitasActiva = 'todos';
 
 function toggleAuthView(view) {
   const loginContainer = document.getElementById('form-login-container');
@@ -1689,7 +1690,28 @@ function logout() {
   location.reload();
 }
 
-// --- LÓGICA DE GESTIÓN DE VISITAS Y PERSONAL (CONECTADO A API BACKEND) ---
+// --- LÓGICA DE GESTIÓN DE VISITAS Y PERSONAL (CON PESTAÑAS Y ESCÁNER DESGLOSADO) ---
+
+function cambiarPestanaVisitas(tipo) {
+  pestanaVisitasActiva = tipo;
+
+  const btnTodos = document.getElementById('tab-btn-todos');
+  const btnEmpleados = document.getElementById('tab-btn-empleados');
+  const btnVisitantes = document.getElementById('tab-btn-visitantes');
+
+  if (btnTodos && btnEmpleados && btnVisitantes) {
+    btnTodos.style.background = tipo === 'todos' ? '#007bff' : '#e0e0e0';
+    btnTodos.style.color = tipo === 'todos' ? 'white' : '#333';
+
+    btnEmpleados.style.background = tipo === 'empleado' ? '#007bff' : '#e0e0e0';
+    btnEmpleados.style.color = tipo === 'empleado' ? 'white' : '#333';
+
+    btnVisitantes.style.background = tipo === 'visitante' ? '#007bff' : '#e0e0e0';
+    btnVisitantes.style.color = tipo === 'visitante' ? 'white' : '#333';
+  }
+
+  renderTablaVisitas();
+}
 
 function escaparHtmlVisitas(valor) {
   return String(valor ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -1722,7 +1744,10 @@ async function actualizarSelectsApartamentosVisitas() {
 async function abrirModalRegistroPersonal() {
   await actualizarSelectsApartamentosVisitas();
   document.getElementById('emp-doc').value = '';
-  document.getElementById('emp-nombre').value = '';
+  document.getElementById('emp-apellido1').value = '';
+  document.getElementById('emp-apellido2').value = '';
+  document.getElementById('emp-nombre1').value = '';
+  document.getElementById('emp-nombre2').value = '';
   document.getElementById('emp-detalles').value = '';
 
   const modal = document.getElementById('modal-reg-empleado');
@@ -1743,7 +1768,10 @@ function cerrarModalEmpleado() {
 async function abrirModalRegistroVisitante() {
   await actualizarSelectsApartamentosVisitas();
   document.getElementById('vis-doc').value = '';
-  document.getElementById('vis-nombre').value = '';
+  document.getElementById('vis-apellido1').value = '';
+  document.getElementById('vis-apellido2').value = '';
+  document.getElementById('vis-nombre1').value = '';
+  document.getElementById('vis-nombre2').value = '';
   document.getElementById('vis-autorizacion').value = 'Autorizado';
 
   const modal = document.getElementById('modal-reg-visitante');
@@ -1761,65 +1789,30 @@ function cerrarModalVisitante() {
   }
 }
 
-function extraerDatosCedulaTexto(textoRaw) {
-  const texto = textoRaw.replace(/[\r\n\t]/g, ' ').trim();
-  let doc = '', ap1 = '', ap2 = '', nom1 = '', nom2 = '';
+function procesarEscaneoCedulaPersonal(rawText, prefijo) {
+  if (!rawText || rawText.length < 20) return;
+  
+  const limpiarTexto = (txt) => (txt || '').replace(/[^\w\sÁÉÍÓÚáéíóúÑñ]/gi, '').trim();
+  let partes = rawText.split(/[\s\n\r]+/).filter(p => p.length > 0);
 
-  if (texto.includes('<') || texto.includes('ICCOL')) {
-    const matchesNumeros = texto.match(/\b([0-9]{8,10})\b/g);
-    if (matchesNumeros && matchesNumeros.length > 0) {
-      doc = matchesNumeros[0];
-    } else {
-      const matchDocMRZ = texto.match(/ICCOL([0-9]{8,10})/i) || texto.match(/COL([0-9]{8,10})/i);
-      if (matchDocMRZ) doc = matchDocMRZ[1];
-    }
+  if (partes.length >= 4) {
+    const apellido1 = limpiarTexto(partes[0]);
+    const apellido2 = limpiarTexto(partes[1]);
+    const nombre1 = limpiarTexto(partes[2]);
+    const nombre2 = limpiarTexto(partes[3]);
+    let docNum = partes.find(p => /^\d{6,12}$/.test(p)) || partes[partes.length - 1];
 
-    const matchNombresMRZ = texto.match(/([A-ZÁÉÍÓÚÑ]+)<([A-ZÁÉÍÓÚÑ]+)<<([A-ZÁÉÍÓÚÑ]+)<([A-ZÁÉÍÓÚÑ]+)/i) ||
-                            texto.match(/([A-ZÁÉÍÓÚÑ]+)<([A-ZÁÉÍÓÚÑ]+)<<([A-ZÁÉÍÓÚÑ]+)/i);
+    const inputDoc = document.getElementById(`${prefijo}-doc`);
+    const inputA1 = document.getElementById(`${prefijo}-apellido1`);
+    const inputA2 = document.getElementById(`${prefijo}-apellido2`);
+    const inputN1 = document.getElementById(`${prefijo}-nombre1`);
+    const inputN2 = document.getElementById(`${prefijo}-nombre2`);
 
-    if (matchNombresMRZ) {
-      ap1 = matchNombresMRZ[1] || '';
-      ap2 = matchNombresMRZ[2] || '';
-      nom1 = matchNombresMRZ[3] || '';
-      nom2 = matchNombresMRZ[4] || '';
-    } else {
-      const partesMRZ = texto.split('<<');
-      if (partesMRZ.length >= 2) {
-        const aps = partesMRZ[0].split('<').filter(Boolean);
-        const noms = partesMRZ[1].split('<').filter(Boolean);
-        ap1 = aps[aps.length - 2] || aps[0] || '';
-        ap2 = aps[aps.length - 1] || '';
-        nom1 = noms[0] || '';
-        nom2 = noms[1] || '';
-      }
-    }
-  } else {
-    const regexCC = /([0-9]{8,10})([A-ZÁÉÍÓÚÑ]+)\b\s*([A-ZÁÉÍÓÚÑ]+)\b\s*([A-ZÁÉÍÓÚÑ]+)\b\s*([A-ZÁÉÍÓÚÑ]*)\b\s*([MF])([0-9]{8})([0-9A-Z+-]{2,3})/;
-    const match = texto.match(regexCC);
-    if (match) {
-      doc = match[1];
-      ap1 = match[2];
-      ap2 = match[3];
-      nom1 = match[4];
-      nom2 = match[5] || '';
-    }
-  }
-
-  const nombre = [nom1, nom2, ap1, ap2].filter(Boolean).join(' ');
-  return { doc, nombre };
-}
-
-function procesarEscaneoCedulaPersonal(textoRaw, tipoForm) {
-  if (!textoRaw || textoRaw.length < 10) return;
-
-  const { doc, nombre } = extraerDatosCedulaTexto(textoRaw);
-
-  if (tipoForm === 'emp') {
-    if (doc) document.getElementById('emp-doc').value = doc;
-    if (nombre) document.getElementById('emp-nombre').value = nombre;
-  } else if (tipoForm === 'vis') {
-    if (doc) document.getElementById('vis-doc').value = doc;
-    if (nombre) document.getElementById('vis-nombre').value = nombre;
+    if (inputDoc && docNum) inputDoc.value = docNum.replace(/[^\d]/g, '');
+    if (inputA1) inputA1.value = apellido1;
+    if (inputA2) inputA2.value = apellido2;
+    if (inputN1) inputN1.value = nombre1;
+    if (inputN2) inputN2.value = nombre2;
   }
 }
 
@@ -1837,13 +1830,22 @@ async function guardarRegistroEmpleado(event) {
   event.preventDefault();
   const token = localStorage.getItem('jwt_token');
 
+  const apellido1 = document.getElementById('emp-apellido1').value.trim();
+  const apellido2 = document.getElementById('emp-apellido2').value.trim();
+  const nombre1 = document.getElementById('emp-nombre1').value.trim();
+  const nombre2 = document.getElementById('emp-nombre2').value.trim();
+  
+  const nombreCompleto = `${nombre1} ${nombre2 ? nombre2 + ' ' : ''}${apellido1} ${apellido2 ? apellido2 : ''}`.trim();
+
   const nuevoRegistro = {
     tipo: 'empleado',
     apartamento: document.getElementById('emp-apto').value,
+    tipo_doc: document.getElementById('emp-tipo-doc').value,
     documento: document.getElementById('emp-doc').value.trim(),
-    nombre: document.getElementById('emp-nombre').value.trim(),
+    nombre: nombreCompleto,
     detalles: document.getElementById('emp-detalles').value.trim(),
-    rol: document.getElementById('emp-rol').value
+    rol: document.getElementById('emp-rol').value,
+    autorizacion: 'Autorizado'
   };
 
   try {
@@ -1874,12 +1876,21 @@ async function guardarRegistroVisitante(event) {
   const token = localStorage.getItem('jwt_token');
   const autorizacion = document.getElementById('vis-autorizacion').value;
 
+  const apellido1 = document.getElementById('vis-apellido1').value.trim();
+  const apellido2 = document.getElementById('vis-apellido2').value.trim();
+  const nombre1 = document.getElementById('vis-nombre1').value.trim();
+  const nombre2 = document.getElementById('vis-nombre2').value.trim();
+  
+  const nombreCompleto = `${nombre1} ${nombre2 ? nombre2 + ' ' : ''}${apellido1} ${apellido2 ? apellido2 : ''}`.trim();
+
   const nuevoRegistro = {
     tipo: 'visitante',
     apartamento: document.getElementById('vis-apto').value,
+    tipo_doc: document.getElementById('vis-tipo-doc').value,
     documento: document.getElementById('vis-doc').value.trim(),
-    nombre: document.getElementById('vis-nombre').value.trim(),
-    detalles: 'Visitante Temporal',
+    nombre: nombreCompleto,
+    detalles: 'Visita temporal a apartamento',
+    rol: 'Visitante',
     autorizacion: autorizacion
   };
 
@@ -1925,11 +1936,34 @@ async function renderTablaVisitas() {
     });
 
     if (res.ok) {
-      const datos = await res.json();
+      let datos = await res.json();
       tbody.innerHTML = '';
 
       if (!datos || datos.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px; color: #666;">No hay registros activos de visitas o personal.</td></tr>`;
+        return;
+      }
+
+      // Filtrar según la pestaña activa superior
+      if (pestanaVisitasActiva === 'empleado') {
+        datos = datos.filter(item => item.tipo === 'empleado');
+      } else if (pestanaVisitasActiva === 'visitante') {
+        datos = datos.filter(item => item.tipo === 'visitante');
+      }
+
+      // Filtrar por el buscador de texto
+      const textoBusqueda = (document.getElementById('search-visitas-input') ? document.getElementById('search-visitas-input').value : '').toLowerCase();
+      if (textoBusqueda) {
+        datos = datos.filter(item => {
+          const nom = (item.nombre || '').toLowerCase();
+          const doc = (item.documento || '').toLowerCase();
+          const apt = (item.apartamento || '').toLowerCase();
+          return nom.includes(textoBusqueda) || doc.includes(textoBusqueda) || apt.includes(textoBusqueda);
+        });
+      }
+
+      if (datos.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px; color: #666;">No se encontraron registros con los filtros actuales.</td></tr>`;
         return;
       }
 

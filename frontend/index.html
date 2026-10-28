@@ -791,39 +791,71 @@
     </div>
   </div>
 
-  <!-- MODAL REGISTRO EMPLEADOS / PERSONAL -->
+  <!-- MODAL REGISTRO EMPLEADOS / PERSONAL (CON DESGLOSE PARA ESCÁNER) -->
   <div id="modal-reg-empleado" class="modal hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 2000;">
-    <div class="modal-content" style="background: white; padding: 25px; border-radius: 10px; width: 450px; max-width: 95vw; max-height: 90vh; overflow-y: auto;">
+    <div class="modal-content" style="background: white; padding: 25px; border-radius: 10px; width: 750px; max-width: 95vw; max-height: 90vh; overflow-y: auto;">
       <h3 style="margin-top: 0; color: #28a745;">👷 Registrar Personal / Mantenimiento</h3>
       <form onsubmit="guardarRegistroEmpleado(event)">
-        <div style="margin-bottom: 12px;">
+        <div style="margin-bottom: 15px;">
           <label style="font-size: 13px; font-weight: bold;">Apartamento de Destino:</label><br>
           <select id="emp-apto" required style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px; background: white;">
             <option value="">Seleccione apartamento...</option>
           </select>
         </div>
-        <div style="margin-bottom: 12px;">
-          <label style="font-size: 13px; font-weight: bold;">Documento de Identidad (Escáner):</label><br>
-          <input type="text" id="emp-doc" oninput="procesarEscaneoCedulaPersonal(this.value, 'emp')" required placeholder="Escanee o digite cédula" style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #007bff; border-radius: 4px; box-sizing: border-box;">
+
+        <fieldset style="border: 1px solid #ddd; padding: 12px; border-radius: 6px; margin-bottom: 15px; background: #fafafa;">
+          <legend style="font-weight: bold; color: #007bff; font-size: 13px; padding: 0 5px;">Datos de Identidad (Lector de Cédula)</legend>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1.5fr 1fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">DOC:</label>
+              <select id="emp-tipo-doc" style="width: 100%; padding: 7px; border: 1px solid #ccc; border-radius: 4px; font-size: 11px;">
+                <option value="CC">CC</option>
+                <option value="CC | NUEVO FORMATO">CC | NUEVO FORMATO</option>
+                <option value="CE">CE</option>
+                <option value="PA">PA</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">IDENTIFICACIÓN:</label>
+              <input type="text" id="emp-doc" oninput="procesarEscaneoCedulaPersonal(this.value, 'emp')" required placeholder="Escanea aquí..." style="width: 100%; padding: 7px; border: 1px solid #007bff; border-radius: 4px; font-size: 11px;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">1ER APELLIDO:</label>
+              <input type="text" id="emp-apellido1" required placeholder="1er Apellido" style="width: 100%; padding: 7px; border: 1px solid #ccc; border-radius: 4px; font-size: 11px;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">2DO APELLIDO:</label>
+              <input type="text" id="emp-apellido2" placeholder="2do Apellido" style="width: 100%; padding: 7px; border: 1px solid #ccc; border-radius: 4px; font-size: 11px;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">1ER NOMBRE:</label>
+              <input type="text" id="emp-nombre1" required placeholder="1er Nombre" style="width: 100%; padding: 7px; border: 1px solid #ccc; border-radius: 4px; font-size: 11px;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">2DO NOMBRE:</label>
+              <input type="text" id="emp-nombre2" placeholder="2do Nombre" style="width: 100%; padding: 7px; border: 1px solid #ccc; border-radius: 4px; font-size: 11px;">
+            </div>
+          </div>
+        </fieldset>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px;">
+          <div>
+            <label style="font-size: 13px; font-weight: bold;">Teléfono / Empresa / ARL:</label><br>
+            <input type="text" id="emp-detalles" required placeholder="Ej: Claro / ARL Sura / 3001234567" style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+          </div>
+          <div>
+            <label style="font-size: 13px; font-weight: bold;">Rol u Ocupación:</label><br>
+            <select id="emp-rol" required style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px; background: white;">
+              <option value="Contratista privado">Contratista privado</option>
+              <option value="Servicios generales">Servicios generales</option>
+              <option value="Mantenimiento">Mantenimiento</option>
+              <option value="Administración">Administración</option>
+              <option value="Técnico de Internet / Servicios">Técnico de Internet / Servicios</option>
+            </select>
+          </div>
         </div>
-        <div style="margin-bottom: 12px;">
-          <label style="font-size: 13px; font-weight: bold;">Nombres y Apellidos:</label><br>
-          <input type="text" id="emp-nombre" required placeholder="Nombre completo" style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
-        </div>
-        <div style="margin-bottom: 12px;">
-          <label style="font-size: 13px; font-weight: bold;">Teléfono / Empresa / ARL:</label><br>
-          <input type="text" id="emp-detalles" required placeholder="Ej: Claro / ARL Sura / 3001234567" style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
-        </div>
-        <div style="margin-bottom: 18px;">
-          <label style="font-size: 13px; font-weight: bold;">Rol u Ocupación:</label><br>
-          <select id="emp-rol" required style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px; background: white;">
-            <option value="Contratista privado">Contratista privado</option>
-            <option value="Servicios generales">Servicios generales</option>
-            <option value="Mantenimiento">Mantenimiento</option>
-            <option value="Administración">Administración</option>
-            <option value="Técnico de Internet / Servicios">Técnico de Internet / Servicios</option>
-          </select>
-        </div>
+
         <div style="display: flex; justify-content: flex-end; gap: 10px;">
           <button type="button" onclick="cerrarModalEmpleado()" style="background: #6c757d; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">Cancelar</button>
           <button type="submit" style="background: #28a745; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Registrar Entrada</button>
@@ -832,25 +864,54 @@
     </div>
   </div>
 
-  <!-- MODAL REGISTRO VISITANTES -->
+  <!-- MODAL REGISTRO VISITANTES (CON DESGLOSE PARA ESCÁNER) -->
   <div id="modal-reg-visitante" class="modal hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 2000;">
-    <div class="modal-content" style="background: white; padding: 25px; border-radius: 10px; width: 450px; max-width: 95vw; max-height: 90vh; overflow-y: auto;">
+    <div class="modal-content" style="background: white; padding: 25px; border-radius: 10px; width: 750px; max-width: 95vw; max-height: 90vh; overflow-y: auto;">
       <h3 style="margin-top: 0; color: #007bff;">🚪 Registrar Visitante Temporal</h3>
       <form onsubmit="guardarRegistroVisitante(event)">
-        <div style="margin-bottom: 12px;">
+        <div style="margin-bottom: 15px;">
           <label style="font-size: 13px; font-weight: bold;">Apartamento a Visitar:</label><br>
           <select id="vis-apto" required style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px; background: white;">
             <option value="">Seleccione apartamento...</option>
           </select>
         </div>
-        <div style="margin-bottom: 12px;">
-          <label style="font-size: 13px; font-weight: bold;">Documento de Identidad (Escáner):</label><br>
-          <input type="text" id="vis-doc" oninput="procesarEscaneoCedulaPersonal(this.value, 'vis')" required placeholder="Escanee o digite cédula" style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #007bff; border-radius: 4px; box-sizing: border-box;">
-        </div>
-        <div style="margin-bottom: 12px;">
-          <label style="font-size: 13px; font-weight: bold;">Nombre Completo del Visitante:</label><br>
-          <input type="text" id="vis-nombre" required placeholder="Nombres y apellidos" style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
-        </div>
+
+        <fieldset style="border: 1px solid #ddd; padding: 12px; border-radius: 6px; margin-bottom: 15px; background: #fafafa;">
+          <legend style="font-weight: bold; color: #007bff; font-size: 13px; padding: 0 5px;">Datos de Identidad (Lector de Cédula)</legend>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1.5fr 1fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">DOC:</label>
+              <select id="vis-tipo-doc" style="width: 100%; padding: 7px; border: 1px solid #ccc; border-radius: 4px; font-size: 11px;">
+                <option value="CC">CC</option>
+                <option value="CC | NUEVO FORMATO">CC | NUEVO FORMATO</option>
+                <option value="CE">CE</option>
+                <option value="PA">PA</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">IDENTIFICACIÓN:</label>
+              <input type="text" id="vis-doc" oninput="procesarEscaneoCedulaPersonal(this.value, 'vis')" required placeholder="Escanea aquí..." style="width: 100%; padding: 7px; border: 1px solid #007bff; border-radius: 4px; font-size: 11px;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">1ER APELLIDO:</label>
+              <input type="text" id="vis-apellido1" required placeholder="1er Apellido" style="width: 100%; padding: 7px; border: 1px solid #ccc; border-radius: 4px; font-size: 11px;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">2DO APELLIDO:</label>
+              <input type="text" id="vis-apellido2" placeholder="2do Apellido" style="width: 100%; padding: 7px; border: 1px solid #ccc; border-radius: 4px; font-size: 11px;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">1ER NOMBRE:</label>
+              <input type="text" id="vis-nombre1" required placeholder="1er Nombre" style="width: 100%; padding: 7px; border: 1px solid #ccc; border-radius: 4px; font-size: 11px;">
+            </div>
+            <div>
+              <label style="font-size: 11px; font-weight: bold;">2DO NOMBRE:</label>
+              <input type="text" id="vis-nombre2" placeholder="2do Nombre" style="width: 100%; padding: 7px; border: 1px solid #ccc; border-radius: 4px; font-size: 11px;">
+            </div>
+          </div>
+        </fieldset>
+
         <div style="margin-bottom: 18px;">
           <label style="font-size: 13px; font-weight: bold;">Autorización Previa del Propietario:</label><br>
           <select id="vis-autorizacion" required style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px; background: white; font-weight: bold;">
@@ -859,6 +920,7 @@
             <option value="Rechazado">🔴 Rechazado</option>
           </select>
         </div>
+
         <div style="display: flex; justify-content: flex-end; gap: 10px;">
           <button type="button" onclick="cerrarModalVisitante()" style="background: #6c757d; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">Cancelar</button>
           <button type="submit" style="background: #007bff; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Registrar Entrada</button>
