@@ -1041,7 +1041,11 @@ async function cargarOcupantesActuales(reservaId) {
       }
 
       ocupantes.forEach(o => {
-        const fotoMini = o.foto ? `<img src="${o.foto}" style="width:30px; height:30px; border-radius:50%; object-fit:cover;" title="Con foto">` : 'Sin foto';
+        // Miniatura interactiva para ver la foto en grande al hacer clic
+        const fotoMini = o.foto 
+          ? `<img src="${o.foto}" onclick="verFotoCompleta('${o.foto}')" style="width:35px; height:35px; border-radius:50%; object-fit:cover; border:2px solid #007bff; cursor:pointer;" title="Clic para ampliar foto">` 
+          : '<span style="color:#999; font-size:11px;">Sin foto</span>';
+
         tbody.innerHTML += `
           <tr>
             <td><strong>${o.tipo_documento || 'CC'} ${o.documento || 'N/A'}</strong></td>
@@ -2048,9 +2052,9 @@ async function renderTablaVisitas() {
         const horaEntradaFmt = item.hora_entrada ? new Date(item.hora_entrada).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
         const fechaFmt = item.creado_en ? item.creado_en.split('T')[0] : '';
 
-        const fotoMini = item.foto 
-          ? `<img src="${item.foto}" style="width:35px; height:35px; border-radius:50%; object-fit:cover; border:2px solid #28a745;" title="Foto de ingreso">` 
-          : '<span style="color:#999; font-size:11px;">Sin foto</span>';
+const fotoMini = item.foto 
+  ? `<img src="${item.foto}" onclick="verFotoCompleta('${item.foto}')" style="width:35px; height:35px; border-radius:50%; object-fit:cover; border:2px solid #28a745; cursor:pointer;" title="Clic para ampliar foto">` 
+  : '<span style="color:#999; font-size:11px;">Sin foto</span>';
 
         tbody.innerHTML += `
           <tr>
@@ -2122,6 +2126,34 @@ async function resolverAutorizacionVisita(id, nuevoEstadoAuth) {
 
 function filtrarVisitasPersonal() {
   renderTablaVisitas();
+}
+
+// --- VISOR GLOBAL DE FOTOGRAFÍAS ---
+
+function verFotoCompleta(urlBase64) {
+  if (!urlBase64) {
+    alert('Este registro no cuenta con una fotografía guardada.');
+    return;
+  }
+
+  const imgZoom = document.getElementById('img-foto-zoom');
+  if (imgZoom) {
+    imgZoom.src = urlBase64;
+  }
+
+  const modal = document.getElementById('modal-ver-foto');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+  }
+}
+
+function cerrarModalVerFoto() {
+  const modal = document.getElementById('modal-ver-foto');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
 }
 
 if (localStorage.getItem('jwt_token')) {
