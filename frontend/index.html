@@ -65,6 +65,7 @@
         <button onclick="showSection('habitaciones')">🛏️ Habitaciones</button>
         <button onclick="showSection('clientes')">👤 Clientes / Usuarios</button>
         <button onclick="showSection('reservas')">📅 Reservas & PDFs</button>
+        <button class="operador-only" onclick="showSection('visitas')">👮 Visitas & Personal</button>
         <button class="admin-only" onclick="showSection('inventario')">📦 Control de Inventario</button>
         <button onclick="logout()" class="btn-logout" style="margin-top: 30px;">🚪 Cerrar Sesión</button>
       </nav>
@@ -102,6 +103,12 @@
               <div style="font-size: 40px; margin-bottom: 10px;">📅</div>
               <h4 style="margin: 0 0 8px 0; color: #212529; font-size: 18px;">Reservas & PDFs</h4>
               <p style="margin: 0; color: #6c757d; font-size: 12px;">Historial de estancias y comprobantes oficiales</p>
+            </div>
+
+            <div class="operador-only" onclick="showSection('visitas')" style="background: #ffffff; border: 2px solid #e2e8f0; border-radius: 10px; padding: 25px 20px; cursor: pointer; transition: all 0.2s ease;">
+              <div style="font-size: 40px; margin-bottom: 10px;">👮</div>
+              <h4 style="margin: 0 0 8px 0; color: #212529; font-size: 18px;">Visitas & Personal</h4>
+              <p style="margin: 0; color: #6c757d; font-size: 12px;">Control de empleados, contratistas y visitantes</p>
             </div>
 
             <div class="admin-only" onclick="showSection('inventario')" style="background: #ffffff; border: 2px solid #e2e8f0; border-radius: 10px; padding: 25px 20px; cursor: pointer; transition: all 0.2s ease;">
@@ -340,6 +347,47 @@
             </table>
           </div>
         </div>
+      </section>
+
+      <!-- MÓDULO DE REGISTRO DE VISITAS Y PERSONAL -->
+      <section id="sec-visitas" class="module hidden operador-only">
+        <header style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div>
+            <h2 style="margin: 0; color: #1a252f;">👮 Registro de Visitas & Personal</h2>
+            <p style="color: #6c757d; margin: 5px 0 0 0; font-size: 14px;">Control de acceso para personal de mantenimiento, empleados y visitantes temporales.</p>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button onclick="abrirModalRegistroPersonal()" style="background: #28a745; color: white; border: none; padding: 8px 14px; border-radius: 4px; cursor: pointer; font-weight: bold;">+ Registrar Personal / Empleado</button>
+            <button onclick="abrirModalRegistroVisitante()" style="background: #007bff; color: white; border: none; padding: 8px 14px; border-radius: 4px; cursor: pointer; font-weight: bold;">+ Registrar Visitante</button>
+          </div>
+        </header>
+
+        <!-- Filtros de Búsqueda -->
+        <div style="background: white; padding: 12px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+          <input type="text" id="search-visitas-input" onkeyup="filtrarVisitasPersonal()" placeholder="🔍 Buscar por nombre, documento o apartamento..." style="flex: 1; min-width: 220px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+          <select id="filter-tipo-registro" onchange="filtrarVisitasPersonal()" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+            <option value="todos">Todos los registros</option>
+            <option value="empleado">Personal / Empleados</option>
+            <option value="visitante">Visitantes</option>
+          </select>
+        </div>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Tipo</th>
+              <th>Apartamento Destino</th>
+              <th>Identificación & Nombre</th>
+              <th>Detalles / Ocupación / Empresa</th>
+              <th>Autorización / Estado</th>
+              <th>Hora Entrada</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-visitas-personal">
+            <tr><td colspan="7" style="text-align: center; padding: 20px; color: #666;">Cargando registros...</td></tr>
+          </tbody>
+        </table>
       </section>
 
     </main>
@@ -732,6 +780,82 @@
         <button type="button" onclick="closeGestionAcompanantesModal()" style="background: #6c757d; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">Cerrar</button>
       </div>
 
+    </div>
+  </div>
+
+  <!-- MODAL REGISTRO EMPLEADOS / PERSONAL -->
+  <div id="modal-reg-empleado" class="modal hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 2000;">
+    <div class="modal-content" style="background: white; padding: 25px; border-radius: 10px; width: 450px; max-width: 95vw; max-height: 90vh; overflow-y: auto;">
+      <h3 style="margin-top: 0; color: #28a745;">👷 Registrar Personal / Mantenimiento</h3>
+      <form onsubmit="guardarRegistroEmpleado(event)">
+        <div style="margin-bottom: 12px;">
+          <label style="font-size: 13px; font-weight: bold;">Apartamento de Destino:</label><br>
+          <select id="emp-apto" required style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px; background: white;">
+            <option value="">Seleccione apartamento...</option>
+          </select>
+        </div>
+        <div style="margin-bottom: 12px;">
+          <label style="font-size: 13px; font-weight: bold;">Documento de Identidad (Escáner):</label><br>
+          <input type="text" id="emp-doc" oninput="procesarEscaneoCedulaPersonal(this.value, 'emp')" required placeholder="Escanee o digite cédula" style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #007bff; border-radius: 4px; box-sizing: border-box;">
+        </div>
+        <div style="margin-bottom: 12px;">
+          <label style="font-size: 13px; font-weight: bold;">Nombres y Apellidos:</label><br>
+          <input type="text" id="emp-nombre" required placeholder="Nombre completo" style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+        </div>
+        <div style="margin-bottom: 12px;">
+          <label style="font-size: 13px; font-weight: bold;">Teléfono / Empresa / ARL:</label><br>
+          <input type="text" id="emp-detalles" required placeholder="Ej: Claro / ARL Sura / 3001234567" style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+        </div>
+        <div style="margin-bottom: 18px;">
+          <label style="font-size: 13px; font-weight: bold;">Rol u Ocupación:</label><br>
+          <select id="emp-rol" required style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px; background: white;">
+            <option value="Contratista privado">Contratista privado</option>
+            <option value="Servicios generales">Servicios generales</option>
+            <option value="Mantenimiento">Mantenimiento</option>
+            <option value="Administración">Administración</option>
+            <option value="Técnico de Internet / Servicios">Técnico de Internet / Servicios</option>
+          </select>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" onclick="cerrarModalEmpleado()" style="background: #6c757d; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">Cancelar</button>
+          <button type="submit" style="background: #28a745; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Registrar Entrada</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL REGISTRO VISITANTES -->
+  <div id="modal-reg-visitante" class="modal hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 2000;">
+    <div class="modal-content" style="background: white; padding: 25px; border-radius: 10px; width: 450px; max-width: 95vw; max-height: 90vh; overflow-y: auto;">
+      <h3 style="margin-top: 0; color: #007bff;">🚪 Registrar Visitante Temporal</h3>
+      <form onsubmit="guardarRegistroVisitante(event)">
+        <div style="margin-bottom: 12px;">
+          <label style="font-size: 13px; font-weight: bold;">Apartamento a Visitar:</label><br>
+          <select id="vis-apto" required style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px; background: white;">
+            <option value="">Seleccione apartamento...</option>
+          </select>
+        </div>
+        <div style="margin-bottom: 12px;">
+          <label style="font-size: 13px; font-weight: bold;">Documento de Identidad (Escáner):</label><br>
+          <input type="text" id="vis-doc" oninput="procesarEscaneoCedulaPersonal(this.value, 'vis')" required placeholder="Escanee o digite cédula" style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #007bff; border-radius: 4px; box-sizing: border-box;">
+        </div>
+        <div style="margin-bottom: 12px;">
+          <label style="font-size: 13px; font-weight: bold;">Nombre Completo del Visitante:</label><br>
+          <input type="text" id="vis-nombre" required placeholder="Nombres y apellidos" style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
+        </div>
+        <div style="margin-bottom: 18px;">
+          <label style="font-size: 13px; font-weight: bold;">Autorización Previa del Propietario:</label><br>
+          <select id="vis-autorizacion" required style="width: 100%; padding: 8px; margin-top: 4px; border: 1px solid #ccc; border-radius: 4px; background: white; font-weight: bold;">
+            <option value="Autorizado">🟢 Autorizado</option>
+            <option value="Pendiente">🟡 Pendiente (Confirmar con propietario)</option>
+            <option value="Rechazado">🔴 Rechazado</option>
+          </select>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" onclick="cerrarModalVisitante()" style="background: #6c757d; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer;">Cancelar</button>
+          <button type="submit" style="background: #007bff; color: white; padding: 8px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">Registrar Entrada</button>
+        </div>
+      </form>
     </div>
   </div>
 

@@ -127,6 +127,8 @@ function showSection(section) {
     loadHistorialReservas();
   } else if (section === 'inventario') {
     cargarInventario();
+  } else if (section === 'visitas') {
+    filtrarVisitasPersonal();
   }
 }
 
@@ -595,21 +597,19 @@ function procesarEscaneoCedula(textoRaw, target) {
   // =========================================================================
   if (texto.includes('<') || texto.includes('ICCOL')) {
     
-    // 1. Extraer limpiamente el Número de Documento aislando exactamente los primeros 8-10 dígitos
-    const matchDocInicio = texto.match(/^([0-9]{8,10})/);
-    if (matchDocInicio) {
-      doc = matchDocInicio[1];
+    // 1. Extraer limpiamente el Número de Documento (Busca secuencia numérica de 8 a 10 dígitos)
+    const matchesNumeros = texto.match(/\b([0-9]{8,10})\b/g);
+    if (matchesNumeros && matchesNumeros.length > 0) {
+      // El primer número largo suele ser el documento de identidad
+      doc = matchesNumeros[0];
     } else {
-      const matchDocMRZ = texto.match(/ICCOL([0-9]{8,10})/i) || texto.match(/COL([0-9]{8,10})/i) || texto.match(/([0-9]{8,10})/);
+      const matchDocMRZ = texto.match(/ICCOL([0-9]{8,10})/i) || texto.match(/COL([0-9]{8,10})/i);
       if (matchDocMRZ) doc = matchDocMRZ[1];
     }
 
-    // Limpiamos los dígitos iniciales y prefijos para que no estorben en la lectura de nombres
-    const textoLimpioNombres = texto.replace(/^[0-9]{8,10}/, '').replace(/COL/gi, '').replace(/ICCOL/gi, '').trim();
-
-    // 2. Extraer Nombres y Apellidos del formato APELLIDO1<APELLIDO2<<NOMBRE1<NOMBRE2
-    const matchNombresMRZ = textoLimpioNombres.match(/([A-ZÁÉÍÓÚÑ]+)<([A-ZÁÉÍÓÚÑ]+)<<([A-ZÁÉÍÓÚÑ]+)<([A-ZÁÉÍÓÚÑ]+)/i) ||
-                            textoLimpioNombres.match(/([A-ZÁÉÍÓÚÑ]+)<([A-ZÁÉÍÓÚÑ]+)<<([A-ZÁÉÍÓÚÑ]+)/i);
+    // 2. Extraer Nombres y Apellidos del formato MARTINEZ<GARCIA<<MARIA<DANIELA
+    const matchNombresMRZ = texto.match(/([A-ZÁÉÍÓÚÑ]+)<([A-ZÁÉÍÓÚÑ]+)<<([A-ZÁÉÍÓÚÑ]+)<([A-ZÁÉÍÓÚÑ]+)/i) ||
+                            texto.match(/([A-ZÁÉÍÓÚÑ]+)<([A-ZÁÉÍÓÚÑ]+)<<([A-ZÁÉÍÓÚÑ]+)/i);
 
     if (matchNombresMRZ) {
       ap1 = matchNombresMRZ[1] || '';
@@ -617,7 +617,7 @@ function procesarEscaneoCedula(textoRaw, target) {
       nom1 = matchNombresMRZ[3] || '';
       nom2 = matchNombresMRZ[4] || '';
     } else {
-      const partesMRZ = textoLimpioNombres.split('<<');
+      const partesMRZ = texto.split('<<');
       if (partesMRZ.length >= 2) {
         const aps = partesMRZ[0].split('<').filter(Boolean);
         const noms = partesMRZ[1].split('<').filter(Boolean);
@@ -1714,6 +1714,341 @@ function logout() {
   localStorage.removeItem('user_name');
   localStorage.removeItem('user_email');
   location.reload();
+}
+
+// --- LÓGICA DE GESTIÓN DE VISITAS Y PERSONAL ---
+
+let listaVisitasPersonal = [];
+try {
+  listaVisitasPersonal = JSON.parse(localStorage.getItem('marinabay_visitas')) || [];
+} catch (e) {
+  listaVisitasPersonal = [];
+}
+
+function guardarVisitasLocal() {
+  localStorage.setItem('marinabay_visitas', JSON.stringify(listaVisitasPersonal));
+}
+
+function escaparHtmlVisitas(valor) {
+  return String(valor ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function horaActualVisitas() {
+  return new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+}
+
+function fechaActualVisitas() {
+  return new Date().toLocaleDateString('es-CO');
+}
+
+async function actualizarSelectsApartamentosVisitas() {
+  const selects = [document.getElementById('emp-apto'), document.getElementById('vis-apto')];
+
+  // allRooms solo se llena al abrir Habitaciones; si está vacío, lo cargamos aquí
+  if (!allRooms || allRooms.length === 0) {
+    await loadRooms();
+  }
+
+  const nombres = [...new Set((allRooms || []).map(room => {
+    const num = String(room.numero || room.room_number || 'S/N').trim();
+    return /^apto/i.test(num) ? num : `Apto ${num}`;
+  }))].sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
+
+  selects.forEach(select => {
+    if (!select) return;
+    select.innerHTML = '<option value="">Seleccione apartamento...</option>';
+    nombres.forEach(nombre => {
+      const opt = document.createElement('option');
+      opt.value = nombre;
+      opt.textContent = nombre;
+      select.appendChild(opt);
+    });
+  });
+}
+
+async function abrirModalRegistroPersonal() {
+  await actualizarSelectsApartamentosVisitas();
+  document.getElementById('emp-doc').value = '';
+  document.getElementById('emp-nombre').value = '';
+  document.getElementById('emp-detalles').value = '';
+
+  const modal = document.getElementById('modal-reg-empleado');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+  }
+}
+
+function cerrarModalEmpleado() {
+  const modal = document.getElementById('modal-reg-empleado');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
+}
+
+async function abrirModalRegistroVisitante() {
+  await actualizarSelectsApartamentosVisitas();
+  document.getElementById('vis-doc').value = '';
+  document.getElementById('vis-nombre').value = '';
+  document.getElementById('vis-autorizacion').value = 'Autorizado';
+
+  const modal = document.getElementById('modal-reg-visitante');
+  if (modal) {
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+  }
+}
+
+function cerrarModalVisitante() {
+  const modal = document.getElementById('modal-reg-visitante');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
+}
+
+// Mismo análisis de cédulas que procesarEscaneoCedula (MRZ y PDF417 tradicional), devolviendo solo documento y nombre
+function extraerDatosCedulaTexto(textoRaw) {
+  const texto = textoRaw.replace(/[\r\n\t]/g, ' ').trim();
+  let doc = '', ap1 = '', ap2 = '', nom1 = '', nom2 = '';
+
+  if (texto.includes('<') || texto.includes('ICCOL')) {
+    const matchesNumeros = texto.match(/\b([0-9]{8,10})\b/g);
+    if (matchesNumeros && matchesNumeros.length > 0) {
+      doc = matchesNumeros[0];
+    } else {
+      const matchDocMRZ = texto.match(/ICCOL([0-9]{8,10})/i) || texto.match(/COL([0-9]{8,10})/i);
+      if (matchDocMRZ) doc = matchDocMRZ[1];
+    }
+
+    const matchNombresMRZ = texto.match(/([A-ZÁÉÍÓÚÑ]+)<([A-ZÁÉÍÓÚÑ]+)<<([A-ZÁÉÍÓÚÑ]+)<([A-ZÁÉÍÓÚÑ]+)/i) ||
+                            texto.match(/([A-ZÁÉÍÓÚÑ]+)<([A-ZÁÉÍÓÚÑ]+)<<([A-ZÁÉÍÓÚÑ]+)/i);
+
+    if (matchNombresMRZ) {
+      ap1 = matchNombresMRZ[1] || '';
+      ap2 = matchNombresMRZ[2] || '';
+      nom1 = matchNombresMRZ[3] || '';
+      nom2 = matchNombresMRZ[4] || '';
+    } else {
+      const partesMRZ = texto.split('<<');
+      if (partesMRZ.length >= 2) {
+        const aps = partesMRZ[0].split('<').filter(Boolean);
+        const noms = partesMRZ[1].split('<').filter(Boolean);
+        ap1 = aps[aps.length - 2] || aps[0] || '';
+        ap2 = aps[aps.length - 1] || '';
+        nom1 = noms[0] || '';
+        nom2 = noms[1] || '';
+      }
+    }
+  } else {
+    const regexCC = /([0-9]{8,10})([A-ZÁÉÍÓÚÑ]+)\b\s*([A-ZÁÉÍÓÚÑ]+)\b\s*([A-ZÁÉÍÓÚÑ]+)\b\s*([A-ZÁÉÍÓÚÑ]*)\b\s*([MF])([0-9]{8})([0-9A-Z+-]{2,3})/;
+    const match = texto.match(regexCC);
+    if (match) {
+      doc = match[1];
+      ap1 = match[2];
+      ap2 = match[3];
+      nom1 = match[4];
+      nom2 = match[5] || '';
+    }
+  }
+
+  const nombre = [nom1, nom2, ap1, ap2].filter(Boolean).join(' ');
+  return { doc, nombre };
+}
+
+// Parser de cédula para los formularios de personal ('emp') y visitantes ('vis')
+function procesarEscaneoCedulaPersonal(textoRaw, tipoForm) {
+  if (!textoRaw || textoRaw.length < 10) return;
+
+  const { doc, nombre } = extraerDatosCedulaTexto(textoRaw);
+
+  if (tipoForm === 'emp') {
+    if (doc) document.getElementById('emp-doc').value = doc;
+    if (nombre) document.getElementById('emp-nombre').value = nombre;
+  } else if (tipoForm === 'vis') {
+    if (doc) document.getElementById('vis-doc').value = doc;
+    if (nombre) document.getElementById('vis-nombre').value = nombre;
+  }
+}
+
+// El escáner envía Enter al terminar la lectura: evitamos que envíe el formulario antes de tiempo
+['emp-doc', 'vis-doc'].forEach(id => {
+  const input = document.getElementById(id);
+  if (input) {
+    input.setAttribute('autocomplete', 'off');
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') e.preventDefault();
+    });
+  }
+});
+
+function guardarRegistroEmpleado(event) {
+  event.preventDefault();
+  const nuevoRegistro = {
+    id: Date.now(),
+    tipo: 'empleado',
+    apartamento: document.getElementById('emp-apto').value,
+    documento: document.getElementById('emp-doc').value.trim(),
+    nombre: document.getElementById('emp-nombre').value.trim(),
+    detalles: document.getElementById('emp-detalles').value.trim(), // Empresa / ARL / Tel
+    rol: document.getElementById('emp-rol').value,
+    estado: 'En Torre',
+    fecha: fechaActualVisitas(),
+    horaEntrada: horaActualVisitas()
+  };
+
+  listaVisitasPersonal.unshift(nuevoRegistro);
+  guardarVisitasLocal();
+  cerrarModalEmpleado();
+  filtrarVisitasPersonal();
+  alert('¡Entrada de personal registrada con éxito!');
+}
+
+function guardarRegistroVisitante(event) {
+  event.preventDefault();
+  const autorizacion = document.getElementById('vis-autorizacion').value;
+
+  const nuevoRegistro = {
+    id: Date.now(),
+    tipo: 'visitante',
+    apartamento: document.getElementById('vis-apto').value,
+    documento: document.getElementById('vis-doc').value.trim(),
+    nombre: document.getElementById('vis-nombre').value.trim(),
+    detalles: 'Visitante Temporal',
+    rol: autorizacion, // Usamos rol para mostrar el estado de autorización
+    fecha: fechaActualVisitas(),
+    horaEntrada: '—'
+  };
+
+  if (autorizacion === 'Autorizado') {
+    nuevoRegistro.estado = 'En Torre';
+    nuevoRegistro.horaEntrada = horaActualVisitas();
+  } else if (autorizacion === 'Pendiente') {
+    nuevoRegistro.estado = 'Esperando autorización';
+  } else {
+    nuevoRegistro.estado = 'Acceso denegado';
+  }
+
+  listaVisitasPersonal.unshift(nuevoRegistro);
+  guardarVisitasLocal();
+  cerrarModalVisitante();
+  filtrarVisitasPersonal();
+
+  if (autorizacion === 'Autorizado') {
+    alert('¡Visitante registrado con éxito!');
+  } else if (autorizacion === 'Pendiente') {
+    alert('Visitante en espera: confirme con el propietario y luego pulse "Autorizar" en la tabla.');
+  } else {
+    alert('Se dejó constancia del acceso denegado. La hora de entrada no se registra.');
+  }
+}
+
+function renderTablaVisitas(filtrados = null) {
+  const tbody = document.getElementById('tabla-visitas-personal');
+  if (!tbody) return;
+
+  const datos = filtrados || listaVisitasPersonal;
+  tbody.innerHTML = '';
+
+  if (datos.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px; color: #666;">No hay registros activos de visitas o personal.</td></tr>`;
+    return;
+  }
+
+  const e = escaparHtmlVisitas;
+
+  datos.forEach(item => {
+    const tipoBadge = item.tipo === 'empleado'
+      ? '<span style="background:#28a745; color:white; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold;">👷 Empleado / Mantenimiento</span>'
+      : '<span style="background:#007bff; color:white; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold;">🚪 Visitante</span>';
+
+    let detalleBadge = '';
+    if (item.tipo === 'empleado') {
+      detalleBadge = `<strong style="color: #333;">${e(item.rol)}</strong><br><small style="color:#666;">${e(item.detalles)}</small>`;
+    } else {
+      let colorAuth = '#28a745';
+      if (item.rol === 'Pendiente') colorAuth = '#ffc107';
+      if (item.rol === 'Rechazado') colorAuth = '#dc3545';
+      detalleBadge = `<span style="background:${colorAuth}; color:white; padding:3px 8px; border-radius:10px; font-size:11px; font-weight:bold;">${e(item.rol)}</span>`;
+    }
+
+    let colorEstado = '#28a745';
+    let textoEstado = item.estado;
+    if (item.estado === 'Esperando autorización') colorEstado = '#e0a800';
+    if (item.estado === 'Acceso denegado') colorEstado = '#dc3545';
+    if (item.estado === 'Retirado') {
+      colorEstado = '#666';
+      textoEstado = `Retirado (${item.horaSalida || ''})`;
+    }
+
+    let accionBtn = '<span style="color: #666; font-size: 11px;">—</span>';
+    if (item.estado === 'En Torre') {
+      accionBtn = `<button onclick="marcarSalidaVisita(${item.id})" style="background:#dc3545; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;">🚪 Registrar Salida</button>`;
+    } else if (item.estado === 'Esperando autorización') {
+      accionBtn = `
+        <button onclick="resolverAutorizacionVisita(${item.id}, true)" style="background:#28a745; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px; margin-right:4px;">✅ Autorizar</button>
+        <button onclick="resolverAutorizacionVisita(${item.id}, false)" style="background:#6c757d; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;">⛔ Denegar</button>`;
+    } else if (item.estado === 'Retirado') {
+      accionBtn = '<span style="color: #666; font-size: 11px;">Salida registrada</span>';
+    }
+
+    tbody.innerHTML += `
+      <tr>
+        <td>${tipoBadge}</td>
+        <td><strong>${e(item.apartamento)}</strong></td>
+        <td><strong>${e(item.nombre)}</strong><br><small style="color:#666;">Doc: ${e(item.documento)}</small></td>
+        <td>${detalleBadge}</td>
+        <td><span style="color:${colorEstado}; font-weight:bold;">${e(textoEstado)}</span></td>
+        <td>⏰ ${e(item.horaEntrada)}<br><small style="color:#666;">${e(item.fecha || '')}</small></td>
+        <td>${accionBtn}</td>
+      </tr>
+    `;
+  });
+}
+
+function marcarSalidaVisita(id) {
+  const reg = listaVisitasPersonal.find(v => v.id === id);
+  if (reg) {
+    reg.estado = 'Retirado';
+    reg.horaSalida = horaActualVisitas();
+    guardarVisitasLocal();
+    filtrarVisitasPersonal();
+  }
+}
+
+function resolverAutorizacionVisita(id, autorizado) {
+  const reg = listaVisitasPersonal.find(v => v.id === id);
+  if (!reg) return;
+
+  if (autorizado) {
+    reg.rol = 'Autorizado';
+    reg.estado = 'En Torre';
+    reg.fecha = fechaActualVisitas();
+    reg.horaEntrada = horaActualVisitas();
+  } else {
+    reg.rol = 'Rechazado';
+    reg.estado = 'Acceso denegado';
+  }
+  guardarVisitasLocal();
+  filtrarVisitasPersonal();
+}
+
+function filtrarVisitasPersonal() {
+  const inputBusqueda = document.getElementById('search-visitas-input');
+  const selectTipo = document.getElementById('filter-tipo-registro');
+  const texto = inputBusqueda ? inputBusqueda.value.toLowerCase() : '';
+  const filtroTipo = selectTipo ? selectTipo.value : 'todos';
+
+  const filtrados = listaVisitasPersonal.filter(item => {
+    const coincideTexto = String(item.nombre || '').toLowerCase().includes(texto) ||
+                          String(item.documento || '').includes(texto) ||
+                          String(item.apartamento || '').toLowerCase().includes(texto);
+    const coincideTipo = filtroTipo === 'todos' || item.tipo === filtroTipo;
+    return coincideTexto && coincideTipo;
+  });
+
+  renderTablaVisitas(filtrados);
 }
 
 if (localStorage.getItem('jwt_token')) {
