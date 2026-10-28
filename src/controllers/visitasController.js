@@ -11,9 +11,23 @@ const obtenerVisitas = async (req, res) => {
     }
 };
 
-// POST /api/visitas - Registrar un nuevo ingreso
+// POST /api/visitas - Registrar un nuevo ingreso con foto y datos desglosados
 const registrarVisita = async (req, res) => {
-    const { tipo, apartamento, documento, nombre, detalles, rol, autorizacion } = req.body;
+    const { 
+        tipo, 
+        apartamento, 
+        tipo_doc, 
+        documento, 
+        nombre, 
+        primer_nombre, 
+        segundo_nombre, 
+        primer_apellido, 
+        segundo_apellido, 
+        detalles, 
+        rol, 
+        autorizacion, 
+        foto 
+    } = req.body;
 
     if (!tipo || !apartamento || !documento || !nombre) {
         return res.status(400).json({ error: 'Campos requeridos faltantes (tipo, apartamento, documento, nombre)' });
@@ -22,20 +36,28 @@ const registrarVisita = async (req, res) => {
     try {
         const query = `
             INSERT INTO visitas_personal (
-                tipo, apartamento, documento, nombre, detalles, rol, autorizacion, estado, hora_entrada, registrado_por
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'En Torre', NOW(), $8)
+                tipo, apartamento, tipo_doc, documento, nombre, 
+                primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, 
+                detalles, rol, autorizacion, estado, hora_entrada, registrado_por, foto
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'En Torre', NOW(), $13, $14)
             RETURNING *;
         `;
         
         const values = [
             tipo,
             apartamento,
+            tipo_doc || 'CC',
             documento,
             nombre,
+            primer_nombre || null,
+            segundo_nombre || null,
+            primer_apellido || null,
+            segundo_apellido || null,
             detalles || null,
             tipo === 'empleado' ? (rol || null) : null,
             tipo === 'visitante' ? (autorizacion || 'Autorizado') : null,
-            req.user ? req.user.email : 'Sistema' // Asumiendo que guardas el usuario logueado en el token
+            req.user ? req.user.email : 'Sistema',
+            foto || null
         ];
 
         const resultado = await db.query(query, values);

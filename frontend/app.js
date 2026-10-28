@@ -1840,12 +1840,17 @@ async function guardarRegistroEmpleado(event) {
   const nuevoRegistro = {
     tipo: 'empleado',
     apartamento: document.getElementById('emp-apto').value,
-    tipo_doc: document.getElementById('emp-tipo-doc').value,
+    tipo_doc: document.getElementById('emp-tipo-doc').value, // <-- NUEVO: Captura el tipo de documento
     documento: document.getElementById('emp-doc').value.trim(),
     nombre: nombreCompleto,
+    primer_nombre: nombre1,                     // <-- NUEVO: Nombre desglosado
+    segundo_nombre: nombre2 || null,            // <-- NUEVO: Nombre desglosado
+    primer_apellido: apellido1,                 // <-- NUEVO: Apellido desglosado
+    segundo_apellido: apellido2 || null,        // <-- NUEVO: Apellido desglosado
     detalles: document.getElementById('emp-detalles').value.trim(),
     rol: document.getElementById('emp-rol').value,
-    autorizacion: 'Autorizado'
+    autorizacion: 'Autorizado',
+    foto: document.getElementById('emp-foto-input').value // <-- NUEVO: Captura la foto en Base64
   };
 
   try {
@@ -1886,12 +1891,17 @@ async function guardarRegistroVisitante(event) {
   const nuevoRegistro = {
     tipo: 'visitante',
     apartamento: document.getElementById('vis-apto').value,
-    tipo_doc: document.getElementById('vis-tipo-doc').value,
+    tipo_doc: document.getElementById('vis-tipo-doc').value, // <-- NUEVO: Captura el tipo de documento
     documento: document.getElementById('vis-doc').value.trim(),
     nombre: nombreCompleto,
+    primer_nombre: nombre1,                     // <-- NUEVO: Nombre desglosado
+    segundo_nombre: nombre2 || null,            // <-- NUEVO: Nombre desglosado
+    primer_apellido: apellido1,                 // <-- NUEVO: Apellido desglosado
+    segundo_apellido: apellido2 || null,        // <-- NUEVO: Apellido desglosado
     detalles: 'Visita temporal a apartamento',
     rol: 'Visitante',
-    autorizacion: autorizacion
+    autorizacion: autorizacion,
+    foto: document.getElementById('vis-foto-input').value // <-- NUEVO: Captura la foto en Base64
   };
 
   try {
@@ -2005,11 +2015,23 @@ async function renderTablaVisitas() {
         const horaEntradaFmt = item.hora_entrada ? new Date(item.hora_entrada).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
         const fechaFmt = item.creado_en ? item.creado_en.split('T')[0] : '';
 
+        // Miniatura de la foto capturada por la cámara
+        const fotoMini = item.foto 
+          ? `<img src="${item.foto}" style="width:35px; height:35px; border-radius:50%; object-fit:cover; border:2px solid #28a745;" title="Foto de ingreso">` 
+          : '<span style="color:#999; font-size:11px;">Sin foto</span>';
+
         tbody.innerHTML += `
           <tr>
             <td>${tipoBadge}</td>
             <td><strong>${e(item.apartamento)}</strong></td>
-            <td><strong>${e(item.nombre)}</strong><br><small style="color:#666;">Doc: ${e(item.documento)}</small></td>
+            <td>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                ${fotoMini}
+                <div>
+                  <strong>${e(item.nombre)}</strong><br><small style="color:#666;">Doc: ${e(item.documento)}</small>
+                </div>
+              </div>
+            </td>
             <td>${detalleBadge}</td>
             <td><span style="color:${colorEstado}; font-weight:bold;">${e(textoEstado)}</span></td>
             <td>⏰ ${e(horaEntradaFmt)}<br><small style="color:#666;">${e(fechaFmt)}</small></td>
