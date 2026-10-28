@@ -595,19 +595,21 @@ function procesarEscaneoCedula(textoRaw, target) {
   // =========================================================================
   if (texto.includes('<') || texto.includes('ICCOL')) {
     
-    // 1. Extraer limpiamente el Número de Documento (Busca secuencia numérica de 8 a 10 dígitos)
-    const matchesNumeros = texto.match(/\b([0-9]{8,10})\b/g);
-    if (matchesNumeros && matchesNumeros.length > 0) {
-      // El primer número largo suele ser el documento de identidad
-      doc = matchesNumeros[0];
+    // 1. Extraer limpiamente el Número de Documento aislando exactamente los primeros 8-10 dígitos
+    const matchDocInicio = texto.match(/^([0-9]{8,10})/);
+    if (matchDocInicio) {
+      doc = matchDocInicio[1];
     } else {
-      const matchDocMRZ = texto.match(/ICCOL([0-9]{8,10})/i) || texto.match(/COL([0-9]{8,10})/i);
+      const matchDocMRZ = texto.match(/ICCOL([0-9]{8,10})/i) || texto.match(/COL([0-9]{8,10})/i) || texto.match(/([0-9]{8,10})/);
       if (matchDocMRZ) doc = matchDocMRZ[1];
     }
 
-    // 2. Extraer Nombres y Apellidos del formato MARTINEZ<GARCIA<<MARIA<DANIELA
-    const matchNombresMRZ = texto.match(/([A-ZÁÉÍÓÚÑ]+)<([A-ZÁÉÍÓÚÑ]+)<<([A-ZÁÉÍÓÚÑ]+)<([A-ZÁÉÍÓÚÑ]+)/i) ||
-                            texto.match(/([A-ZÁÉÍÓÚÑ]+)<([A-ZÁÉÍÓÚÑ]+)<<([A-ZÁÉÍÓÚÑ]+)/i);
+    // Limpiamos los dígitos iniciales y prefijos para que no estorben en la lectura de nombres
+    const textoLimpioNombres = texto.replace(/^[0-9]{8,10}/, '').replace(/COL/gi, '').replace(/ICCOL/gi, '').trim();
+
+    // 2. Extraer Nombres y Apellidos del formato APELLIDO1<APELLIDO2<<NOMBRE1<NOMBRE2
+    const matchNombresMRZ = textoLimpioNombres.match(/([A-ZÁÉÍÓÚÑ]+)<([A-ZÁÉÍÓÚÑ]+)<<([A-ZÁÉÍÓÚÑ]+)<([A-ZÁÉÍÓÚÑ]+)/i) ||
+                            textoLimpioNombres.match(/([A-ZÁÉÍÓÚÑ]+)<([A-ZÁÉÍÓÚÑ]+)<<([A-ZÁÉÍÓÚÑ]+)/i);
 
     if (matchNombresMRZ) {
       ap1 = matchNombresMRZ[1] || '';
@@ -615,7 +617,7 @@ function procesarEscaneoCedula(textoRaw, target) {
       nom1 = matchNombresMRZ[3] || '';
       nom2 = matchNombresMRZ[4] || '';
     } else {
-      const partesMRZ = texto.split('<<');
+      const partesMRZ = textoLimpioNombres.split('<<');
       if (partesMRZ.length >= 2) {
         const aps = partesMRZ[0].split('<').filter(Boolean);
         const noms = partesMRZ[1].split('<').filter(Boolean);
