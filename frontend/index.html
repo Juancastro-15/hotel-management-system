@@ -492,7 +492,7 @@
     </div>
   </div>
 
-  <!-- CHECK-IN OPERATIVO COMPLETO (CON TIPO DE DOCUMENTO, MANILLA Y FOTO DEL TITULAR) -->
+  <!-- CHECK-IN OPERATIVO COMPLETO -->
   <div id="recepcion-checkin-modal" class="modal hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 2000;">
     <div class="modal-content" style="background: white; padding: 25px; border-radius: 10px; width: 1100px; max-width: 95vw; max-height: 95vh; overflow-y: auto; box-shadow: 0 5px 25px rgba(0,0,0,0.3);">
       
@@ -504,52 +504,77 @@
       <form id="recepcion-checkin-form" onsubmit="guardarCheckInOficial(event)">
         <input type="hidden" id="checkin-op-room-id">
 
-        <!-- Titular principal con tipo de documento, manilla propia y foto -->
+        <!-- Titular Principal con estructura exacta de columnas -->
         <fieldset style="border: 1px solid #dcdcdc; padding: 15px; border-radius: 6px; margin-bottom: 15px; background: #fafafa;">
           <legend style="font-weight: bold; color: #007bff; padding: 0 5px; font-size: 13px;">👤 Titular Principal del Registro</legend>
-          <div style="display: grid; grid-template-columns: 1fr 1.3fr 1fr 1fr 1fr 1fr auto; gap: 10px; align-items: center;">
+          
+          <div style="display: grid; grid-template-columns: 45px 1.2fr 1.5fr 1.5fr 1.5fr 0.6fr 1.1fr 0.7fr 1.2fr 1fr 1fr 1.1fr auto; gap: 5px; align-items: center; overflow-x: auto;">
             <div>
-              <label style="font-size: 11px; font-weight: bold; color: #555;">Tipo Doc:</label>
-              <select id="checkin-op-tipo-doc" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-top: 3px;">
-  <option value="CC">CC</option>
-  <option value="CC | NUEVO FORMATO">CC | NUEVO FORMATO</option>
-  <option value="CE">CE</option>
-  <option value="PA">PA</option>
-  <option value="TI">TI</option>
-  <option value="CD">CD</option>
-  <option value="DE">DE</option>
-  <option value="RC">RC</option>
-</select>
+              <label style="font-size: 10px; font-weight: bold; color: #555;">#</label>
+              <div style="background: #28a745; color: white; text-align: center; font-weight: bold; padding: 7px 0; border-radius: 4px; font-size: 12px;">1</div>
             </div>
             <div>
-              <label style="font-size: 11px; font-weight: bold; color: #555;">N° Documento (Escáner):</label>
-              <input type="text" id="checkin-op-documento" required placeholder="N° Documento" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-top: 3px;" title="Escanea aquí con tu lector de código de barras/PDF417">
+              <label style="font-size: 10px; font-weight: bold; color: #555;">DOC</label>
+              <select id="checkin-op-tipo-doc" style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 11px;">
+                <option value="CC">CC</option>
+                <option value="CC | NUEVO FORMATO">CC | NUEVO FORMATO</option>
+                <option value="CE">CE</option>
+                <option value="PA">PA</option>
+                <option value="TI">TI</option>
+                <option value="CD">CD</option>
+                <option value="DE">DE</option>
+                <option value="RC">RC</option>
+              </select>
             </div>
             <div>
-              <label style="font-size: 11px; font-weight: bold; color: #555;"># Manilla:</label>
-              <input type="text" id="checkin-op-manilla" required placeholder="# Manilla" style="width: 100%; padding: 8px; border: 1px solid #007bff; font-weight: bold; color: #007bff; border-radius: 4px; box-sizing: border-box; margin-top: 3px;">
+              <label style="font-size: 10px; font-weight: bold; color: #555;">IDENTIFICACION</label>
+              <input type="text" id="checkin-op-documento" required placeholder="N° Documento" style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 11px;" title="Escanea aquí con tu lector de código de barras/PDF417">
             </div>
             <div>
-              <label style="font-size: 11px; font-weight: bold; color: #555;">Nombre Titular:</label>
-              <input type="text" id="checkin-op-nombre" required placeholder="Nombre completo" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-top: 3px;">
+              <label style="font-size: 10px; font-weight: bold; color: #555;">APELLIDOS</label>
+              <input type="text" id="checkin-op-apellidos" required placeholder="Apellidos" style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 11px;">
             </div>
             <div>
-              <label style="font-size: 11px; font-weight: bold; color: #555;">Teléfono:</label>
-              <input type="text" id="checkin-op-telefono" required placeholder="Teléfono" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-top: 3px;">
+              <label style="font-size: 10px; font-weight: bold; color: #555;">NOMBRES</label>
+              <input type="text" id="checkin-op-nombre" required placeholder="Nombres" style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 11px;">
             </div>
             <div>
-              <label style="font-size: 11px; font-weight: bold; color: #555;"># Boleta Acceso:</label>
-              <input type="text" id="checkin-op-boleta" placeholder="Boleta" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-top: 3px;">
+              <label style="font-size: 10px; font-weight: bold; color: #555;">GN</label>
+              <input type="text" id="checkin-op-gn" placeholder="F/M" maxlength="1" style="width: 100%; padding: 6px; text-align: center; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 11px;">
             </div>
             <div>
-              <label style="font-size: 11px; font-weight: bold; color: #555; display:block;">Foto:</label>
+              <label style="font-size: 10px; font-weight: bold; color: #555;">F D N</label>
+              <input type="date" id="checkin-op-fdn" style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 9px;">
+            </div>
+            <div>
+              <label style="font-size: 10px; font-weight: bold; color: #555;">RH</label>
+              <input type="text" id="checkin-op-rh" placeholder="O+" style="width: 100%; padding: 6px; text-align: center; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 11px;">
+            </div>
+            <div>
+              <label style="font-size: 10px; font-weight: bold; color: #555;">PAIS</label>
+              <input type="text" id="checkin-op-pais" value="COLOMBIA" style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 11px;">
+            </div>
+            <div>
+              <label style="font-size: 10px; font-weight: bold; color: #555;">CIUDAD</label>
+              <input type="text" id="checkin-op-ciudad" placeholder="Ciudad" style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 11px;">
+            </div>
+            <div>
+              <label style="font-size: 10px; font-weight: bold; color: #555;"># M</label>
+              <input type="text" id="checkin-op-manilla" required placeholder="Manilla" style="width: 100%; padding: 6px; border: 1px solid #007bff; font-weight: bold; color: #007bff; border-radius: 4px; box-sizing: border-box; font-size: 11px;">
+            </div>
+            <div>
+              <label style="font-size: 10px; font-weight: bold; color: #555;">TEL</label>
+              <input type="text" id="checkin-op-telefono" required placeholder="Teléfono" style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 11px;">
+            </div>
+            <div>
+              <label style="font-size: 10px; font-weight: bold; color: #555; display:block;">Datos</label>
               <input type="hidden" id="checkin-op-foto-input" value="">
-              <button type="button" id="btn-foto-titular" onclick="abrirModalCamara('titular')" style="background: #17a2b8; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px; margin-top: 3px;">📸 Foto</button>
+              <button type="button" id="btn-foto-titular" onclick="abrirModalCamara('titular')" style="background: #17a2b8; color: white; border: none; padding: 7px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 10px;" title="Tomar foto">📷</button>
             </div>
           </div>
         </fieldset>
 
-        <!-- Registro dinámico de Acompañantes con tipo de documento, manillas y cámara -->
+        <!-- Registro dinámico de Acompañantes -->
         <fieldset style="border: 1px solid #dcdcdc; padding: 15px; border-radius: 6px; margin-bottom: 15px; background: #fafafa;">
           <legend style="font-weight: bold; color: #6f42c1; padding: 0 5px; font-size: 13px;">👥 Registro Detallado de Acompañantes, Manillas & Fotos</legend>
           
@@ -565,8 +590,12 @@
 
         <!-- Controles operativos y Fechas -->
         <fieldset style="border: 1px solid #dcdcdc; padding: 15px; border-radius: 6px; margin-bottom: 20px; background: #fafafa;">
-          <legend style="font-weight: bold; color: #28a745; padding: 0 5px; font-size: 13px;">📅 Fechas de Estancia y Detalles Vehiculares</legend>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 10px;">
+          <legend style="font-weight: bold; color: #28a745; padding: 0 5px; font-size: 13px;">📅 Fechas de Estancia, Boleta y Vehículo</legend>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 10px;">
+            <div>
+              <label style="font-size: 12px; font-weight: bold; color: #555;"># Boleta de Acceso (Opcional):</label>
+              <input type="text" id="checkin-op-boleta" placeholder="Boleta asignada" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-top: 3px;">
+            </div>
             <div>
               <label style="font-size: 12px; font-weight: bold; color: #555;">Fecha de Entrada (Check-In):</label>
               <input type="date" id="checkin-op-entrada" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-top: 3px;">
@@ -639,15 +668,15 @@
             <div>
               <label style="font-size: 11px; font-weight: bold;">Tipo Doc:</label>
               <select id="add-acomp-tipo-doc" style="width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
-  <option value="CC">CC</option>
-  <option value="CC | NUEVO FORMATO">CC | NUEVO FORMATO</option>
-  <option value="CE">CE</option>
-  <option value="PA">PA</option>
-  <option value="TI">TI</option>
-  <option value="CD">CD</option>
-  <option value="DE">DE</option>
-  <option value="RC">RC</option>
-</select>
+                <option value="CC">CC</option>
+                <option value="CC | NUEVO FORMATO">CC | NUEVO FORMATO</option>
+                <option value="CE">CE</option>
+                <option value="PA">PA</option>
+                <option value="TI">TI</option>
+                <option value="CD">CD</option>
+                <option value="DE">DE</option>
+                <option value="RC">RC</option>
+              </select>
             </div>
             <div>
               <label style="font-size: 11px; font-weight: bold;">N° Documento (Escáner):</label>
@@ -664,7 +693,7 @@
             <div>
               <label style="font-size: 11px; font-weight: bold;">Fotografía:</label><br>
               <input type="hidden" id="add-acomp-foto-input" value="">
-              <button type="button" id="btn-foto-nuevo-acomp" onclick="abrirModalCamara('nuevo-acomp')" style="background: #17a2b8; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px;">📸 Tomar Foto</button>
+              <button type="button" id="btn-foto-nuevo-acomp" onclick="abrirModalCamara('nuevo-acomp')" style="background: #17a2b8; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 11px;">📷 Tomar Foto</button>
             </div>
           </div>
 

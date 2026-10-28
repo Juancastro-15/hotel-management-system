@@ -606,7 +606,7 @@ async function prepararManillasParaCheckIn() {
   manillasDisponiblesCache = await obtenerManillasDisponibles();
 }
 
-async function agregarFilaAcompanante(nombre = '', doc = '', manilla = '', edad = '', pais = 'COLOMBIA', ciudad = '', tipoDoc = 'CC') {
+async function agregarFilaAcompanante(nombre = '', apellidos = '', doc = '', manilla = '', edad = '', pais = 'COLOMBIA', ciudad = '', tipoDoc = 'CC', gn = '', fdn = '', rh = '', tel = '') {
   const contenedor = document.getElementById('contenedor-acompanantes');
   if (!contenedor) return;
 
@@ -617,11 +617,14 @@ async function agregarFilaAcompanante(nombre = '', doc = '', manilla = '', edad 
   }
 
   const idFila = 'acomp-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+  const totalFilas = contenedor.querySelectorAll('div').length + 2;
+
   const div = document.createElement('div');
   div.id = idFila;
-  div.style.cssText = 'display: grid; grid-template-columns: 1.3fr 1.2fr 0.8fr 0.8fr 1fr 1fr 1.3fr 1.3fr 1.1fr 35px; gap: 5px; align-items: center; background: #fff; padding: 8px; border-radius: 4px; border: 1px solid #e0e0e0; font-size: 11px; margin-bottom: 6px;';
+  div.style.cssText = 'display: grid; grid-template-columns: 45px 1.2fr 1.5fr 1.5fr 1.5fr 0.6fr 1.1fr 0.7fr 1.2fr 1fr 1fr 1.1fr auto; gap: 5px; align-items: center; background: #fff; padding: 6px; border-radius: 4px; border: 1px solid #e0e0e0; font-size: 11px; margin-bottom: 6px;';
 
   div.innerHTML = `
+    <div style="background: #6f42c1; color: white; text-align: center; font-weight: bold; padding: 6px 0; border-radius: 4px; font-size: 11px;">${totalFilas}</div>
     <select class="acomp-tipo-doc" style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
       <option value="CC" ${tipoDoc === 'CC' ? 'selected' : ''}>CC</option>
       <option value="CC | NUEVO FORMATO" ${tipoDoc === 'CC | NUEVO FORMATO' ? 'selected' : ''}>CC | NUEVO FORMATO</option>
@@ -632,18 +635,21 @@ async function agregarFilaAcompanante(nombre = '', doc = '', manilla = '', edad 
       <option value="DE" ${tipoDoc === 'DE' ? 'selected' : ''}>DE</option>
       <option value="RC" ${tipoDoc === 'RC' ? 'selected' : ''}>RC</option>
     </select>
-    <input type="text" class="acomp-doc" value="${doc}" placeholder="N° Documento" required style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;" title="Escanea aquí con tu lector de código de barras/PDF417">
-    <input type="text" class="acomp-manilla" value="${manilla}" placeholder="# Manilla" required style="padding: 5px; border: 1px solid #007bff; border-radius: 3px; font-size: 11px; font-weight: bold; color: #007bff;">
-    <input type="number" class="acomp-edad" value="${edad}" placeholder="Edad" style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
+    <input type="text" class="acomp-doc" value="${doc}" placeholder="Identificación" required style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
+    <input type="text" class="acomp-apellidos" value="${apellidos}" placeholder="Apellidos" required style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
+    <input type="text" class="acomp-nombres" value="${nombre}" placeholder="Nombres" required style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
+    <input type="text" class="acomp-gn" value="${gn}" placeholder="F/M" maxlength="1" style="padding: 5px; text-align:center; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
+    <input type="date" class="acomp-fdn" value="${fdn}" style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 9px;">
+    <input type="text" class="acomp-rh" value="${rh}" placeholder="O+" style="padding: 5px; text-align:center; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
     <input type="text" class="acomp-pais" value="${pais}" placeholder="País" style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
     <input type="text" class="acomp-ciudad" value="${ciudad}" placeholder="Ciudad" style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
-    <input type="text" class="acomp-nombres" value="${nombre}" placeholder="Nombres" required style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
-    <input type="text" class="acomp-apellidos" placeholder="Apellidos" style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
+    <input type="text" class="acomp-manilla" value="${manilla}" placeholder="Manilla" required style="padding: 5px; border: 1px solid #007bff; border-radius: 3px; font-size: 11px; font-weight: bold; color: #007bff;">
+    <input type="text" class="acomp-tel" value="${tel}" placeholder="Teléfono" style="padding: 5px; border: 1px solid #ccc; border-radius: 3px; font-size: 11px;">
     
     <input type="hidden" class="acomp-foto-input" value="">
-    <button type="button" id="btn-foto-${idFila}" onclick="abrirModalCamara('acomp', '${idFila}')" style="background:#17a2b8; color:white; border:none; padding:5px; border-radius:3px; cursor:pointer; font-size:10px; font-weight:bold;">📸 Foto</button>
+    <button type="button" id="btn-foto-${idFila}" onclick="abrirModalCamara('acomp', '${idFila}')" style="background:#17a2b8; color:white; border:none; padding:5px 8px; border-radius:3px; cursor:pointer; font-size:10px; font-weight:bold;" title="Tomar foto">📷</button>
 
-    <button type="button" onclick="document.getElementById('${idFila}').remove()" style="background: #dc3545; color: white; border: none; border-radius: 3px; padding: 5px; cursor: pointer; font-weight: bold;" title="Quitar">✕</button>
+    <button type="button" onclick="document.getElementById('${idFila}').remove()" style="background: #dc3545; color: white; border: none; border-radius: 3px; padding: 5px 8px; cursor: pointer; font-weight: bold;" title="Quitar">✕</button>
   `;
 
   contenedor.appendChild(div);
@@ -651,7 +657,6 @@ async function agregarFilaAcompanante(nombre = '', doc = '', manilla = '', edad 
 
 // --- CHECK-IN OPERATIVO EN RECEPCIÓN ---
 async function abrirModalRecepcionCheckIn(roomId, huespedPreReserva = '', fIngreso = '', fSalida = '') {
-  // Función auxiliar segura para evitar errores de tipo TypeError si falta algún campo en el HTML
   const setVal = (id, val) => {
     const el = document.getElementById(id);
     if (el) el.value = val;
@@ -664,6 +669,12 @@ async function abrirModalRecepcionCheckIn(roomId, huespedPreReserva = '', fIngre
   setVal('checkin-op-entrada', fIngreso || hoy);
   setVal('checkin-op-salida', fSalida || hoy);
   setVal('checkin-op-documento', '');
+  setVal('checkin-op-apellidos', '');
+  setVal('checkin-op-gn', '');
+  setVal('checkin-op-fdn', '');
+  setVal('checkin-op-rh', '');
+  setVal('checkin-op-pais', 'COLOMBIA');
+  setVal('checkin-op-ciudad', '');
   setVal('checkin-op-telefono', '');
   setVal('checkin-op-boleta', '');
   setVal('checkin-op-placa', '');
@@ -672,13 +683,12 @@ async function abrirModalRecepcionCheckIn(roomId, huespedPreReserva = '', fIngre
   
   const btnFotoTitular = document.getElementById('btn-foto-titular');
   if (btnFotoTitular) {
-    btnFotoTitular.innerText = '📸 Foto Titular';
+    btnFotoTitular.innerText = '📷';
     btnFotoTitular.style.background = '#17a2b8';
   }
 
   await prepararManillasParaCheckIn();
 
-  // Asignar manilla sugerida al titular automáticamente
   const manillaTitularInput = document.getElementById('checkin-op-manilla');
   if (manillaTitularInput) {
     manillaTitularInput.value = manillasDisponiblesCache[0] || '';
@@ -727,7 +737,9 @@ async function guardarCheckInOficial(event) {
 
   const token = localStorage.getItem('jwt_token');
   const habitacion_id = getVal('checkin-op-room-id');
-  const nombre = getVal('checkin-op-nombre');
+  const nombres = getVal('checkin-op-nombre');
+  const apellidos = getVal('checkin-op-apellidos');
+  const nombreCompleto = `${nombres} ${apellidos}`.trim();
   const tipo_documento_titular = getVal('checkin-op-tipo-doc') || 'CC';
   const documento = getVal('checkin-op-documento');
   const manilla_titular = getVal('checkin-op-manilla');
@@ -748,11 +760,14 @@ async function guardarCheckInOficial(event) {
     const aTipoDoc = fila.querySelector('.acomp-tipo-doc') ? fila.querySelector('.acomp-tipo-doc').value : 'CC';
     const aDoc = fila.querySelector('.acomp-doc') ? fila.querySelector('.acomp-doc').value : '';
     const aManilla = fila.querySelector('.acomp-manilla') ? fila.querySelector('.acomp-manilla').value : '';
-    const aEdad = fila.querySelector('.acomp-edad') ? fila.querySelector('.acomp-edad').value : '';
     const aPais = fila.querySelector('.acomp-pais') ? fila.querySelector('.acomp-pais').value : 'COLOMBIA';
     const aCiudad = fila.querySelector('.acomp-ciudad') ? fila.querySelector('.acomp-ciudad').value : '';
     const aNombres = fila.querySelector('.acomp-nombres') ? fila.querySelector('.acomp-nombres').value : '';
     const aApellidos = fila.querySelector('.acomp-apellidos') ? fila.querySelector('.acomp-apellidos').value : '';
+    const aGn = fila.querySelector('.acomp-gn') ? fila.querySelector('.acomp-gn').value : '';
+    const aFdn = fila.querySelector('.acomp-fdn') ? fila.querySelector('.acomp-fdn').value : '';
+    const aRh = fila.querySelector('.acomp-rh') ? fila.querySelector('.acomp-rh').value : '';
+    const aTel = fila.querySelector('.acomp-tel') ? fila.querySelector('.acomp-tel').value : '';
     const aFoto = fila.querySelector('.acomp-foto-input') ? fila.querySelector('.acomp-foto-input').value : '';
 
     if (aNombres && aManilla) {
@@ -760,11 +775,14 @@ async function guardarCheckInOficial(event) {
         tipo_documento: aTipoDoc,
         documento: aDoc,
         manilla: aManilla,
-        edad: aEdad,
         pais: aPais,
         ciudad: aCiudad,
         nombres: aNombres,
         apellidos: aApellidos,
+        genero: aGn,
+        fecha_nacimiento: aFdn,
+        rh: aRh,
+        telefono: aTel,
         foto: aFoto
       });
     }
@@ -779,7 +797,7 @@ async function guardarCheckInOficial(event) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ nombre, email, telefono, documento, tipo_documento: tipo_documento_titular })
+      body: JSON.stringify({ nombre: nombreCompleto, email, telefono, documento, tipo_documento: tipo_documento_titular })
     });
 
     const dataCliente = await resCliente.json().catch(() => ({}));
@@ -793,27 +811,32 @@ async function guardarCheckInOficial(event) {
       return;
     }
 
+    const payloadReserva = {
+      habitacion_id,
+      cliente_id,
+      fecha_entrada,
+      fecha_salida,
+      estado: 'ocupada',
+      vehiculo,
+      placa,
+      observaciones,
+      manilla_titular,
+      tipo_documento_titular,
+      foto_titular,
+      huespedes_detalle: acompanantes
+    };
+
+    if (boleta && boleta.trim() !== '') {
+      payloadReserva.boleta = boleta.trim();
+    }
+
     const resReserva = await fetch(`${API_URL}/reservas`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({
-        habitacion_id,
-        cliente_id,
-        fecha_entrada,
-        fecha_salida,
-        estado: 'ocupada',
-        boleta,
-        vehiculo,
-        placa,
-        observaciones,
-        manilla_titular,
-        tipo_documento_titular,
-        foto_titular,
-        huespedes_detalle: acompanantes
-      })
+      body: JSON.stringify(payloadReserva)
     });
 
     if (!resReserva.ok) {
@@ -861,7 +884,7 @@ async function abrirModalGestionAcompanantes(reservaId, numeroApto) {
   
   const btnFotoAdd = document.getElementById('btn-foto-nuevo-acomp');
   if (btnFotoAdd) {
-    btnFotoAdd.innerText = '📸 Tomar Foto';
+    btnFotoAdd.innerText = '📷 Tomar Foto';
     btnFotoAdd.style.background = '#17a2b8';
   }
 
@@ -1038,7 +1061,7 @@ function abrirModalCamara(tipo, idFila = '') {
       if (currentVideoElement) currentVideoElement.srcObject = stream;
     })
     .catch(err => {
-      alert('No se pudo acceder a la cámara: ' + err.message);
+      alert('No se pudo acceder à la cámara: ' + err.message);
       cerrarModalCamara();
     });
 }
