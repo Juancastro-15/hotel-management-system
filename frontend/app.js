@@ -583,13 +583,13 @@ async function cancelarPreReserva(id, numeroApto) {
 // --- PARSER DE ESCÁNER PDF417 / CÉDULAS COLOMBIANAS ---
 
 function procesarEscaneoCedula(texto, target) {
-  if (!texto || texto.length < 35) return;
+  if (!texto || texto.length < 15) return;
 
   let doc = '', ap1 = '', ap2 = '', nom1 = '', nom2 = '', gn = '', fdn = '', rh = '';
 
-  // Expresión regular para capturar la estructura estándar de códigos de barras PDF417 de la Registraduría
+  // 1. Intentar lectura formato tradicional PDF417
   const regexCC = /([0-9]{8,10})([A-ZÁÉÍÓÚÑ]+)\b\s*([A-ZÁÉÍÓÚÑ]+)\b\s*([A-ZÁÉÍÓÚÑ]+)\b\s*([A-ZÁÉÍÓÚÑ]*)\b\s*([MF])([0-9]{8})([0-9A-Z+-]{2,3})/;
-  const match = texto.match(regexCC);
+  let match = texto.match(regexCC);
 
   if (match) {
     doc = match[1];
@@ -598,31 +598,39 @@ function procesarEscaneoCedula(texto, target) {
     nom1 = match[4];
     nom2 = match[5] || '';
     gn = match[6];
-    
     const rawFdn = match[7]; // AAAAMMDD
     if (rawFdn && rawFdn.length === 8) {
-      const a = rawFdn.substring(0, 4);
-      const m = rawFdn.substring(4, 6);
-      const d = rawFdn.substring(6, 8);
-      fdn = `${d}/${m}/${a}`;
+      fdn = `${rawFdn.substring(6, 8)}/${rawFdn.substring(4, 6)}/${rawFdn.substring(0, 4)}`;
     }
-
     rh = match[8];
   } else {
-    // Parser fallback por división de caracteres no alfanuméricos
-    const partes = texto.split(/[\x00-\x1F\x7F-\xFF]/).filter(p => p.trim().length > 0);
-    if (partes.length >= 5) {
-      doc = partes.find(p => /^[0-9]{8,10}$/.test(p.trim())) || '';
-      const palabras = partes.filter(p => /^[A-ZÁÉÍÓÚÑ\s]+$/i.test(p.trim()));
-      if (palabras.length >= 3) {
-        ap1 = palabras[0].trim();
-        ap2 = palabras[1].trim();
-        nom1 = palabras[2].trim();
-        nom2 = palabras[3] ? palabras[3].trim() : '';
+    // 2. Parser adaptativo para la CÉDULA NUEVA / FORMATO DIGITAL (Policarbonato)
+    // Limpiamos caracteres de control y separamos por espacios o tabulaciones del lector
+    const limpia = texto.replace(/[\x00-\x1F\x7F-\xFF]/g, ' ').trim();
+    const tokens = limpia.split(/\s+/).filter(t => t.length > 0);
+
+    // Buscar el número de cédula (usualmente de 8 a 10 dígitos)
+    const idxDoc = tokens.findIndex(t => /^[0-9]{8,10}$/.test(t));
+    if (idxDoc !== -1) {
+      doc = tokens[idxDoc];
+      // En la cédula nueva, los apellidos y nombres suelen venir justo después del número
+      const palabrasTexto = tokens.slice(idxDoc + 1).filter(t => /^[A-ZÁÉÍÓÚÑ]+$/i.test(t));
+      if (palabrasTexto.length >= 2) {
+        ap1 = palabrasTexto[0] || '';
+        ap2 = palabrasTexto[1] || '';
+        nom1 = palabrasTexto[2] || '';
+        nom2 = palabrasTexto[3] || '';
+      }
+    } else {
+      // Fallback genérico por si el lector arroja todo en bloque continuo
+      const partes = texto.split(/[\n\r\t|]/).map(p => p.trim()).filter(p => p.length > 0);
+      if (partes.length > 0) {
+        doc = partes.find(p => /^[0-9]{8,10}$/.test(p)) || partes[0];
       }
     }
   }
 
+  // Rellenar campos dependiendo si es el Titular o un Acompañante
   if (target === 'titular') {
     if (doc) document.getElementById('checkin-op-documento').value = doc;
     if (ap1) document.getElementById('checkin-op-apellido1').value = ap1;
