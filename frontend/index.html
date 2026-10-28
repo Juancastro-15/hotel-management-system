@@ -349,7 +349,7 @@
         </div>
       </section>
 
-      <!-- MÓDULO DE REGISTRO DE VISITAS Y PERSONAL -->
+      <!-- MÓDULO DE REGISTRO DE VISITAS Y PERSONAL CON PESTAÑAS Y CHECK-OUT -->
       <section id="sec-visitas" class="module hidden operador-only">
         <header style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
           <div>
@@ -362,14 +362,22 @@
           </div>
         </header>
 
+        <!-- Pestañas de Navegación General -->
+        <div style="display: flex; gap: 10px; margin-bottom: 15px; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px;">
+          <button id="tab-btn-todos" onclick="cambiarPestanaVisitas('todos')" style="padding: 8px 16px; border: none; background: #007bff; color: white; border-radius: 4px; cursor: pointer; font-weight: bold;">
+            📋 Todos los Registros
+          </button>
+          <button id="tab-btn-empleados" onclick="cambiarPestanaVisitas('empleado')" style="padding: 8px 16px; border: none; background: #e0e0e0; color: #333; border-radius: 4px; cursor: pointer; font-weight: bold;">
+            👷 Personal y Mantenimiento
+          </button>
+          <button id="tab-btn-visitantes" onclick="cambiarPestanaVisitas('visitante')" style="padding: 8px 16px; border: none; background: #e0e0e0; color: #333; border-radius: 4px; cursor: pointer; font-weight: bold;">
+            🚪 Visitantes
+          </button>
+        </div>
+
         <!-- Filtros de Búsqueda -->
         <div style="background: white; padding: 12px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
           <input type="text" id="search-visitas-input" onkeyup="filtrarVisitasPersonal()" placeholder="🔍 Buscar por nombre, documento o apartamento..." style="flex: 1; min-width: 220px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-          <select id="filter-tipo-registro" onchange="filtrarVisitasPersonal()" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-            <option value="todos">Todos los registros</option>
-            <option value="empleado">Personal / Empleados</option>
-            <option value="visitante">Visitantes</option>
-          </select>
         </div>
 
         <table class="data-table">
@@ -380,8 +388,8 @@
               <th>Identificación & Nombre</th>
               <th>Detalles / Ocupación / Empresa</th>
               <th>Autorización / Estado</th>
-              <th>Hora Entrada</th>
-              <th>Acciones</th>
+              <th>Hora Entrada / Salida</th>
+              <th>Acciones (Check-Out)</th>
             </tr>
           </thead>
           <tbody id="tabla-visitas-personal">
@@ -540,7 +548,7 @@
     </div>
   </div>
 
-  <!-- CHECK-IN OPERATIVO COMPLETO (AMPLIADO, CON CAMPOS DESGLOSADOS Y F.D.N EN TEXTO) -->
+  <!-- CHECK-IN OPERATIVO COMPLETO -->
   <div id="recepcion-checkin-modal" class="modal hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 2000;">
     <div class="modal-content" style="background: white; padding: 30px; border-radius: 12px; width: 1350px; max-width: 98vw; max-height: 96vh; overflow-y: auto; box-shadow: 0 8px 30px rgba(0,0,0,0.35);">
       
@@ -552,7 +560,7 @@
       <form id="recepcion-checkin-form" onsubmit="guardarCheckInOficial(event)">
         <input type="hidden" id="checkin-op-room-id">
 
-        <!-- Titular Principal con campos de Apellidos y Nombres desglosados y F.D.N en formato DD/MM/AAAA -->
+        <!-- Titular Principal -->
         <fieldset style="border: 2px solid #dcdcdc; padding: 18px; border-radius: 8px; margin-bottom: 20px; background: #fafafa;">
           <legend style="font-weight: bold; color: #007bff; padding: 0 8px; font-size: 15px;">👤 Titular Principal del Registro</legend>
           
@@ -644,7 +652,7 @@
           </div>
         </fieldset>
 
-        <!-- Controles operativos y Fechas -->
+        <!-- Fechas y Controles -->
         <fieldset style="border: 2px solid #dcdcdc; padding: 18px; border-radius: 8px; margin-bottom: 20px; background: #fafafa;">
           <legend style="font-weight: bold; color: #28a745; padding: 0 8px; font-size: 15px;">📅 Fechas de Estancia, Boleta y Vehículo</legend>
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 15px; margin-bottom: 12px;">
@@ -687,7 +695,7 @@
     </div>
   </div>
 
-  <!-- MODAL DE GESTIÓN Y ADICIÓN DE ACOMPAÑANTES A RESERVAS EXISTENTES -->
+  <!-- MODAL DE GESTIÓN DE ACOMPAÑANTES -->
   <div id="gestion-acompanantes-modal" class="modal hidden" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 2100;">
     <div class="modal-content" style="background: white; padding: 25px; border-radius: 10px; width: 1000px; max-width: 95vw; max-height: 90vh; overflow-y: auto; box-shadow: 0 5px 25px rgba(0,0,0,0.3);">
       

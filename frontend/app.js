@@ -128,7 +128,7 @@ function showSection(section) {
   } else if (section === 'inventario') {
     cargarInventario();
   } else if (section === 'visitas') {
-    filtrarVisitasPersonal();
+    renderTablaVisitas();
   }
 }
 
@@ -587,27 +587,18 @@ async function cancelarPreReserva(id, numeroApto) {
 function procesarEscaneoCedula(textoRaw, target) {
   if (!textoRaw || textoRaw.length < 10) return;
 
-  // Limpiar saltos de línea y espacios de más que envía el escáner
   const texto = textoRaw.replace(/[\r\n\t]/g, ' ').trim();
-
   let doc = '', ap1 = '', ap2 = '', nom1 = '', nom2 = '', gn = '', fdn = '', rh = '';
 
-  // =========================================================================
-  // CASO 1: CÉDULA NUEVA / FORMATO DIGITAL O PASAPORTE (ZONA MRZ CON SÍMBOLOS '<')
-  // =========================================================================
   if (texto.includes('<') || texto.includes('ICCOL')) {
-    
-    // 1. Extraer limpiamente el Número de Documento (Busca secuencia numérica de 8 a 10 dígitos)
     const matchesNumeros = texto.match(/\b([0-9]{8,10})\b/g);
     if (matchesNumeros && matchesNumeros.length > 0) {
-      // El primer número largo suele ser el documento de identidad
       doc = matchesNumeros[0];
     } else {
       const matchDocMRZ = texto.match(/ICCOL([0-9]{8,10})/i) || texto.match(/COL([0-9]{8,10})/i);
       if (matchDocMRZ) doc = matchDocMRZ[1];
     }
 
-    // 2. Extraer Nombres y Apellidos del formato MARTINEZ<GARCIA<<MARIA<DANIELA
     const matchNombresMRZ = texto.match(/([A-ZÁÉÍÓÚÑ]+)<([A-ZÁÉÍÓÚÑ]+)<<([A-ZÁÉÍÓÚÑ]+)<([A-ZÁÉÍÓÚÑ]+)/i) ||
                             texto.match(/([A-ZÁÉÍÓÚÑ]+)<([A-ZÁÉÍÓÚÑ]+)<<([A-ZÁÉÍÓÚÑ]+)/i);
 
@@ -628,7 +619,6 @@ function procesarEscaneoCedula(textoRaw, target) {
       }
     }
 
-    // 3. Extraer Fecha de Nacimiento (6 dígitos YYMMDD) y Género (F / M)
     const matchFechaMRZ = texto.match(/([0-9]{6})([0-9])([FM])/i);
     if (matchFechaMRZ) {
       const rawYYMMDD = matchFechaMRZ[1];
@@ -641,12 +631,7 @@ function procesarEscaneoCedula(textoRaw, target) {
       const anioFull = (yy > 26 ? '19' : '20') + (yy < 10 ? '0' + yy : yy);
       fdn = `${dd}/${mm}/${anioFull}`;
     }
-
-  } 
-  // =========================================================================
-  // CASO 2: CÉDULA ANTIGUA (PDF417 TRADICIONAL)
-  // =========================================================================
-  else {
+  } else {
     const regexCC = /([0-9]{8,10})([A-ZÁÉÍÓÚÑ]+)\b\s*([A-ZÁÉÍÓÚÑ]+)\b\s*([A-ZÁÉÍÓÚÑ]+)\b\s*([A-ZÁÉÍÓÚÑ]*)\b\s*([MF])([0-9]{8})([0-9A-Z+-]{2,3})/;
     const match = texto.match(regexCC);
 
@@ -658,7 +643,7 @@ function procesarEscaneoCedula(textoRaw, target) {
       nom2 = match[5] || '';
       gn = match[6];
       
-      const rawFdn = match[7]; // AAAAMMDD
+      const rawFdn = match[7];
       if (rawFdn && rawFdn.length === 8) {
         fdn = `${rawFdn.substring(6, 8)}/${rawFdn.substring(4, 6)}/${rawFdn.substring(0, 4)}`;
       }
@@ -666,9 +651,6 @@ function procesarEscaneoCedula(textoRaw, target) {
     }
   }
 
-  // =========================================================================
-  // ASIGNACIÓN AUTOMÁTICA A LOS CAMPOS DE LA INTERFAZ
-  // =========================================================================
   if (target === 'titular') {
     if (doc) document.getElementById('checkin-op-documento').value = doc;
     if (ap1) document.getElementById('checkin-op-apellido1').value = ap1;
@@ -692,8 +674,6 @@ function procesarEscaneoCedula(textoRaw, target) {
     }
   }
 }
-
-// --- AUTO-SUGERENCIA DE MANILLAS Y GESTIÓN DINÁMICA DE INTEGRANTES ---
 
 async function obtenerManillasDisponibles() {
   const token = localStorage.getItem('jwt_token');
@@ -770,7 +750,6 @@ async function agregarFilaAcompanante(nom1 = '', nom2 = '', ap1 = '', ap2 = '', 
   contenedor.appendChild(div);
 }
 
-// --- CHECK-IN OPERATIVO EN RECEPCIÓN ---
 async function abrirModalRecepcionCheckIn(roomId, huespedPreReserva = '', fIngreso = '', fSalida = '') {
   const setVal = (id, val) => {
     const el = document.getElementById(id);
@@ -779,7 +758,6 @@ async function abrirModalRecepcionCheckIn(roomId, huespedPreReserva = '', fIngre
 
   setVal('checkin-op-room-id', roomId);
   
-  // Si viene una cadena compuesta, intentamos rellenar los nombres desglosados
   const partesNom = (huespedPreReserva || '').trim().split(' ');
   setVal('checkin-op-nombre1', partesNom[0] || '');
   setVal('checkin-op-nombre2', partesNom[1] || '');
@@ -1002,8 +980,6 @@ async function guardarCheckInOficial(event) {
   }
 }
 
-// --- GESTIÓN Y ADICIÓN DE ACOMPAÑANTES A RESERVAS EXISTENTES ---
-
 async function abrirModalGestionAcompanantes(reservaId, numeroApto) {
   document.getElementById('acomp-reserva-id').value = reservaId;
   document.getElementById('acomp-modal-title').innerText = `👥 Gestión de Acompañantes & Manillas - Apto ${numeroApto}`;
@@ -1144,7 +1120,6 @@ async function guardarNuevoAcompananteExistente(event) {
   }
 }
 
-// --- CONTROLADOR DE CÁMARA WEB / FOTOGRAFÍA ---
 let currentVideoElement = null;
 let currentCanvasElement = null;
 let activePhotoInputTarget = null;
@@ -1226,8 +1201,6 @@ function cerrarModalCamara() {
   const modalCam = document.getElementById('modal-camara-captura');
   if (modalCam) modalCam.style.display = 'none';
 }
-
-// --- MÓDULO DE INVENTARIO MASIVO ---
 
 async function cargarSelectHabitaciones() {
   const select = document.getElementById('input-boleta-habitacion-id');
@@ -1716,35 +1689,15 @@ function logout() {
   location.reload();
 }
 
-// --- LÓGICA DE GESTIÓN DE VISITAS Y PERSONAL ---
-
-let listaVisitasPersonal = [];
-try {
-  listaVisitasPersonal = JSON.parse(localStorage.getItem('marinabay_visitas')) || [];
-} catch (e) {
-  listaVisitasPersonal = [];
-}
-
-function guardarVisitasLocal() {
-  localStorage.setItem('marinabay_visitas', JSON.stringify(listaVisitasPersonal));
-}
+// --- LÓGICA DE GESTIÓN DE VISITAS Y PERSONAL (CONECTADO A API BACKEND) ---
 
 function escaparHtmlVisitas(valor) {
   return String(valor ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-function horaActualVisitas() {
-  return new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
-}
-
-function fechaActualVisitas() {
-  return new Date().toLocaleDateString('es-CO');
-}
-
 async function actualizarSelectsApartamentosVisitas() {
   const selects = [document.getElementById('emp-apto'), document.getElementById('vis-apto')];
 
-  // allRooms solo se llena al abrir Habitaciones; si está vacío, lo cargamos aquí
   if (!allRooms || allRooms.length === 0) {
     await loadRooms();
   }
@@ -1808,7 +1761,6 @@ function cerrarModalVisitante() {
   }
 }
 
-// Mismo análisis de cédulas que procesarEscaneoCedula (MRZ y PDF417 tradicional), devolviendo solo documento y nombre
 function extraerDatosCedulaTexto(textoRaw) {
   const texto = textoRaw.replace(/[\r\n\t]/g, ' ').trim();
   let doc = '', ap1 = '', ap2 = '', nom1 = '', nom2 = '';
@@ -1857,7 +1809,6 @@ function extraerDatosCedulaTexto(textoRaw) {
   return { doc, nombre };
 }
 
-// Parser de cédula para los formularios de personal ('emp') y visitantes ('vis')
 function procesarEscaneoCedulaPersonal(textoRaw, tipoForm) {
   if (!textoRaw || textoRaw.length < 10) return;
 
@@ -1872,7 +1823,6 @@ function procesarEscaneoCedulaPersonal(textoRaw, tipoForm) {
   }
 }
 
-// El escáner envía Enter al terminar la lectura: evitamos que envíe el formulario antes de tiempo
 ['emp-doc', 'vis-doc'].forEach(id => {
   const input = document.getElementById(id);
   if (input) {
@@ -1883,172 +1833,207 @@ function procesarEscaneoCedulaPersonal(textoRaw, tipoForm) {
   }
 });
 
-function guardarRegistroEmpleado(event) {
+async function guardarRegistroEmpleado(event) {
   event.preventDefault();
+  const token = localStorage.getItem('jwt_token');
+
   const nuevoRegistro = {
-    id: Date.now(),
     tipo: 'empleado',
     apartamento: document.getElementById('emp-apto').value,
     documento: document.getElementById('emp-doc').value.trim(),
     nombre: document.getElementById('emp-nombre').value.trim(),
-    detalles: document.getElementById('emp-detalles').value.trim(), // Empresa / ARL / Tel
-    rol: document.getElementById('emp-rol').value,
-    estado: 'En Torre',
-    fecha: fechaActualVisitas(),
-    horaEntrada: horaActualVisitas()
+    detalles: document.getElementById('emp-detalles').value.trim(),
+    rol: document.getElementById('emp-rol').value
   };
 
-  listaVisitasPersonal.unshift(nuevoRegistro);
-  guardarVisitasLocal();
-  cerrarModalEmpleado();
-  filtrarVisitasPersonal();
-  alert('¡Entrada de personal registrada con éxito!');
+  try {
+    const res = await fetch(`${API_URL}/visitas`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(nuevoRegistro)
+    });
+
+    if (res.ok) {
+      cerrarModalEmpleado();
+      renderTablaVisitas();
+      alert('¡Entrada de personal registrada con éxito en la base de datos!');
+    } else {
+      const data = await res.json();
+      alert('Error: ' + (data.error || 'No se pudo registrar el ingreso'));
+    }
+  } catch (err) {
+    alert('Error de conexión con el servidor.');
+  }
 }
 
-function guardarRegistroVisitante(event) {
+async function guardarRegistroVisitante(event) {
   event.preventDefault();
+  const token = localStorage.getItem('jwt_token');
   const autorizacion = document.getElementById('vis-autorizacion').value;
 
   const nuevoRegistro = {
-    id: Date.now(),
     tipo: 'visitante',
     apartamento: document.getElementById('vis-apto').value,
     documento: document.getElementById('vis-doc').value.trim(),
     nombre: document.getElementById('vis-nombre').value.trim(),
     detalles: 'Visitante Temporal',
-    rol: autorizacion, // Usamos rol para mostrar el estado de autorización
-    fecha: fechaActualVisitas(),
-    horaEntrada: '—'
+    autorizacion: autorizacion
   };
 
-  if (autorizacion === 'Autorizado') {
-    nuevoRegistro.estado = 'En Torre';
-    nuevoRegistro.horaEntrada = horaActualVisitas();
-  } else if (autorizacion === 'Pendiente') {
-    nuevoRegistro.estado = 'Esperando autorización';
-  } else {
-    nuevoRegistro.estado = 'Acceso denegado';
-  }
+  try {
+    const res = await fetch(`${API_URL}/visitas`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(nuevoRegistro)
+    });
 
-  listaVisitasPersonal.unshift(nuevoRegistro);
-  guardarVisitasLocal();
-  cerrarModalVisitante();
-  filtrarVisitasPersonal();
-
-  if (autorizacion === 'Autorizado') {
-    alert('¡Visitante registrado con éxito!');
-  } else if (autorizacion === 'Pendiente') {
-    alert('Visitante en espera: confirme con el propietario y luego pulse "Autorizar" en la tabla.');
-  } else {
-    alert('Se dejó constancia del acceso denegado. La hora de entrada no se registra.');
+    if (res.ok) {
+      cerrarModalVisitante();
+      renderTablaVisitas();
+      if (autorizacion === 'Autorizado') {
+        alert('¡Visitante registrado con éxito!');
+      } else if (autorizacion === 'Pendiente') {
+        alert('Visitante registrado en estado Pendiente.');
+      } else {
+        alert('Se registró el acceso como Rechazado.');
+      }
+    } else {
+      const data = await res.json();
+      alert('Error: ' + (data.error || 'No se pudo registrar el visitante'));
+    }
+  } catch (err) {
+    alert('Error de conexión con el servidor.');
   }
 }
 
-function renderTablaVisitas(filtrados = null) {
+async function renderTablaVisitas() {
+  const token = localStorage.getItem('jwt_token');
   const tbody = document.getElementById('tabla-visitas-personal');
   if (!tbody) return;
 
-  const datos = filtrados || listaVisitasPersonal;
-  tbody.innerHTML = '';
+  tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px; color: #666;">Cargando registros de visitas...</td></tr>`;
 
-  if (datos.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px; color: #666;">No hay registros activos de visitas o personal.</td></tr>`;
-    return;
+  try {
+    const res = await fetch(`${API_URL}/visitas`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (res.ok) {
+      const datos = await res.json();
+      tbody.innerHTML = '';
+
+      if (!datos || datos.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px; color: #666;">No hay registros activos de visitas o personal.</td></tr>`;
+        return;
+      }
+
+      const e = escaparHtmlVisitas;
+
+      datos.forEach(item => {
+        const tipoBadge = item.tipo === 'empleado'
+          ? '<span style="background:#28a745; color:white; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold;">👷 Empleado / Mantenimiento</span>'
+          : '<span style="background:#007bff; color:white; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold;">🚪 Visitante</span>';
+
+        let detalleBadge = '';
+        if (item.tipo === 'empleado') {
+          detalleBadge = `<strong style="color: #333;">${e(item.rol)}</strong><br><small style="color:#666;">${e(item.detalles)}</small>`;
+        } else {
+          const authEstado = item.autorizacion || 'Autorizado';
+          let colorAuth = '#28a745';
+          if (authEstado === 'Pendiente') colorAuth = '#ffc107';
+          if (authEstado === 'Rechazado') colorAuth = '#dc3545';
+          detalleBadge = `<span style="background:${colorAuth}; color:white; padding:3px 8px; border-radius:10px; font-size:11px; font-weight:bold;">${e(authEstado)}</span>`;
+        }
+
+        let colorEstado = '#28a745';
+        let textoEstado = item.estado || 'En Torre';
+        if (textoEstado === 'Esperando autorización' || item.autorizacion === 'Pendiente') colorEstado = '#e0a800';
+        if (textoEstado === 'Acceso denegado' || item.autorizacion === 'Rechazado') colorEstado = '#dc3545';
+        if (textoEstado === 'Retirado') colorEstado = '#666';
+
+        let accionBtn = '<span style="color: #666; font-size: 11px;">—</span>';
+        if (textoEstado === 'En Torre') {
+          accionBtn = `<button onclick="marcarSalidaVisita(${item.id})" style="background:#dc3545; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;">🚪 Registrar Salida</button>`;
+        } else if (item.autorizacion === 'Pendiente') {
+          accionBtn = `
+            <button onclick="resolverAutorizacionVisita(${item.id}, 'Autorizado')" style="background:#28a745; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px; margin-right:4px;">✅ Autorizar</button>
+            <button onclick="resolverAutorizacionVisita(${item.id}, 'Rechazado')" style="background:#6c757d; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;">⛔ Denegar</button>`;
+        } else if (textoEstado === 'Retirado') {
+          accionBtn = '<span style="color: #666; font-size: 11px;">Salida registrada</span>';
+        }
+
+        const horaEntradaFmt = item.hora_entrada ? new Date(item.hora_entrada).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
+        const fechaFmt = item.creado_en ? item.creado_en.split('T')[0] : '';
+
+        tbody.innerHTML += `
+          <tr>
+            <td>${tipoBadge}</td>
+            <td><strong>${e(item.apartamento)}</strong></td>
+            <td><strong>${e(item.nombre)}</strong><br><small style="color:#666;">Doc: ${e(item.documento)}</small></td>
+            <td>${detalleBadge}</td>
+            <td><span style="color:${colorEstado}; font-weight:bold;">${e(textoEstado)}</span></td>
+            <td>⏰ ${e(horaEntradaFmt)}<br><small style="color:#666;">${e(fechaFmt)}</small></td>
+            <td>${accionBtn}</td>
+          </tr>
+        `;
+      });
+    }
+  } catch (err) {
+    console.error('Error al cargar visitas:', err);
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px; color: red;">Error al conectar con el servidor.</td></tr>`;
   }
+}
 
-  const e = escaparHtmlVisitas;
+async function marcarSalidaVisita(id) {
+  const token = localStorage.getItem('jwt_token');
 
-  datos.forEach(item => {
-    const tipoBadge = item.tipo === 'empleado'
-      ? '<span style="background:#28a745; color:white; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold;">👷 Empleado / Mantenimiento</span>'
-      : '<span style="background:#007bff; color:white; padding:3px 8px; border-radius:12px; font-size:11px; font-weight:bold;">🚪 Visitante</span>';
+  try {
+    const res = await fetch(`${API_URL}/visitas/${id}/salida`, {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
 
-    let detalleBadge = '';
-    if (item.tipo === 'empleado') {
-      detalleBadge = `<strong style="color: #333;">${e(item.rol)}</strong><br><small style="color:#666;">${e(item.detalles)}</small>`;
+    if (res.ok) {
+      renderTablaVisitas();
     } else {
-      let colorAuth = '#28a745';
-      if (item.rol === 'Pendiente') colorAuth = '#ffc107';
-      if (item.rol === 'Rechazado') colorAuth = '#dc3545';
-      detalleBadge = `<span style="background:${colorAuth}; color:white; padding:3px 8px; border-radius:10px; font-size:11px; font-weight:bold;">${e(item.rol)}</span>`;
+      alert('No se pudo registrar la salida.');
     }
-
-    let colorEstado = '#28a745';
-    let textoEstado = item.estado;
-    if (item.estado === 'Esperando autorización') colorEstado = '#e0a800';
-    if (item.estado === 'Acceso denegado') colorEstado = '#dc3545';
-    if (item.estado === 'Retirado') {
-      colorEstado = '#666';
-      textoEstado = `Retirado (${item.horaSalida || ''})`;
-    }
-
-    let accionBtn = '<span style="color: #666; font-size: 11px;">—</span>';
-    if (item.estado === 'En Torre') {
-      accionBtn = `<button onclick="marcarSalidaVisita(${item.id})" style="background:#dc3545; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;">🚪 Registrar Salida</button>`;
-    } else if (item.estado === 'Esperando autorización') {
-      accionBtn = `
-        <button onclick="resolverAutorizacionVisita(${item.id}, true)" style="background:#28a745; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px; margin-right:4px;">✅ Autorizar</button>
-        <button onclick="resolverAutorizacionVisita(${item.id}, false)" style="background:#6c757d; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:11px;">⛔ Denegar</button>`;
-    } else if (item.estado === 'Retirado') {
-      accionBtn = '<span style="color: #666; font-size: 11px;">Salida registrada</span>';
-    }
-
-    tbody.innerHTML += `
-      <tr>
-        <td>${tipoBadge}</td>
-        <td><strong>${e(item.apartamento)}</strong></td>
-        <td><strong>${e(item.nombre)}</strong><br><small style="color:#666;">Doc: ${e(item.documento)}</small></td>
-        <td>${detalleBadge}</td>
-        <td><span style="color:${colorEstado}; font-weight:bold;">${e(textoEstado)}</span></td>
-        <td>⏰ ${e(item.horaEntrada)}<br><small style="color:#666;">${e(item.fecha || '')}</small></td>
-        <td>${accionBtn}</td>
-      </tr>
-    `;
-  });
-}
-
-function marcarSalidaVisita(id) {
-  const reg = listaVisitasPersonal.find(v => v.id === id);
-  if (reg) {
-    reg.estado = 'Retirado';
-    reg.horaSalida = horaActualVisitas();
-    guardarVisitasLocal();
-    filtrarVisitasPersonal();
+  } catch (err) {
+    alert('Error de conexión con el servidor.');
   }
 }
 
-function resolverAutorizacionVisita(id, autorizado) {
-  const reg = listaVisitasPersonal.find(v => v.id === id);
-  if (!reg) return;
+async function resolverAutorizacionVisita(id, nuevoEstadoAuth) {
+  const token = localStorage.getItem('jwt_token');
 
-  if (autorizado) {
-    reg.rol = 'Autorizado';
-    reg.estado = 'En Torre';
-    reg.fecha = fechaActualVisitas();
-    reg.horaEntrada = horaActualVisitas();
-  } else {
-    reg.rol = 'Rechazado';
-    reg.estado = 'Acceso denegado';
+  try {
+    const res = await fetch(`${API_URL}/visitas/${id}/autorizacion`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ autorizacion: nuevoEstadoAuth })
+    });
+
+    if (res.ok) {
+      renderTablaVisitas();
+    } else {
+      alert('No se pudo actualizar la autorización.');
+    }
+  } catch (err) {
+    alert('Error de conexión con el servidor.');
   }
-  guardarVisitasLocal();
-  filtrarVisitasPersonal();
 }
 
 function filtrarVisitasPersonal() {
-  const inputBusqueda = document.getElementById('search-visitas-input');
-  const selectTipo = document.getElementById('filter-tipo-registro');
-  const texto = inputBusqueda ? inputBusqueda.value.toLowerCase() : '';
-  const filtroTipo = selectTipo ? selectTipo.value : 'todos';
-
-  const filtrados = listaVisitasPersonal.filter(item => {
-    const coincideTexto = String(item.nombre || '').toLowerCase().includes(texto) ||
-                          String(item.documento || '').includes(texto) ||
-                          String(item.apartamento || '').toLowerCase().includes(texto);
-    const coincideTipo = filtroTipo === 'todos' || item.tipo === filtroTipo;
-    return coincideTexto && coincideTipo;
-  });
-
-  renderTablaVisitas(filtrados);
+  renderTablaVisitas();
 }
 
 if (localStorage.getItem('jwt_token')) {

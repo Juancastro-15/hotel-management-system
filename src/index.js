@@ -9,9 +9,10 @@ const reservationRoutes = require('./routes/reservationRoutes');
 const clientRoutes = require('./routes/clientRoutes'); 
 const userRoutes = require('./routes/userRoutes'); 
 const pdfRoutes = require('./routes/pdfRoutes'); 
-
-// 1. IMPORTAR LA RUTA DE INVENTARIO
 const inventarioRoutes = require('./routes/inventarioRoutes'); 
+
+// 1. IMPORTAR LA RUTA DE VISITAS & PERSONAL
+const visitasRoutes = require('./routes/visitasRoutes'); 
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -27,9 +28,10 @@ app.use('/api/reservas', reservationRoutes);
 app.use('/api/clientes', clientRoutes); 
 app.use('/api/usuarios', userRoutes); 
 app.use('/api/pdf', pdfRoutes); 
-
-// 2. MONTAR LA RUTA DE INVENTARIO
 app.use('/api/inventario', inventarioRoutes); 
+
+// 2. MONTAR LA RUTA DE VISITAS Y PERSONAL
+app.use('/api/visitas', visitasRoutes); 
 
 // Ruta de prueba inicial
 app.get('/', (req, res) => {
