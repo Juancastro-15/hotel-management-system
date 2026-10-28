@@ -1125,6 +1125,7 @@ let currentVideoElement = null;
 let currentCanvasElement = null;
 let activePhotoInputTarget = null;
 let activePhotoButtonTarget = null;
+let mediaStream = null;
 
 function abrirModalCamara(tipo, idFila = '') {
   if (tipo === 'titular') {
@@ -1139,6 +1140,12 @@ function abrirModalCamara(tipo, idFila = '') {
       activePhotoInputTarget = fila.querySelector('.acomp-foto-input');
       activePhotoButtonTarget = fila.querySelector(`#btn-foto-${idFila}`);
     }
+  } else if (tipo === 'personal-emp') {
+    activePhotoInputTarget = document.getElementById('emp-foto-input');
+    activePhotoButtonTarget = document.getElementById('btn-foto-emp');
+  } else if (tipo === 'personal-vis') {
+    activePhotoInputTarget = document.getElementById('vis-foto-input');
+    activePhotoButtonTarget = document.getElementById('btn-foto-vis');
   }
 
   let modalCam = document.getElementById('modal-camara-captura');
@@ -1148,12 +1155,12 @@ function abrirModalCamara(tipo, idFila = '') {
     modalCam.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:flex; justify-content:center; align-items:center; z-index:9999;';
     modalCam.innerHTML = `
       <div style="background:#fff; padding:20px; border-radius:8px; text-align:center; max-width:400px; width:100%;">
-        <h3>Tomar Fotografía del Huésped</h3>
+        <h3>Tomar Fotografía</h3>
         <video id="cam-preview" autoplay playsinline style="width:100%; height:250px; background:#000; border-radius:4px; object-fit:cover;"></video>
         <canvas id="cam-canvas" style="display:none;"></canvas>
         <div style="margin-top:15px; display:flex; justify-content:space-around;">
-          <button type="button" onclick="capturarFotoReal()" style="background:#28a745; color:#fff; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">📸 Capturar</button>
-          <button type="button" onclick="cerrarModalCamara()" style="background:#dc3545; color:#fff; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">❌ Cancelar</button>
+          <button type="button" id="btn-ejecutar-captura" style="background:#28a745; color:#fff; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">📸 Capturar</button>
+          <button type="button" id="btn-cerrar-camara" style="background:#dc3545; color:#fff; border:none; padding:8px 15px; border-radius:4px; font-weight:bold; cursor:pointer;">❌ Cancelar</button>
         </div>
       </div>
     `;
@@ -1165,9 +1172,15 @@ function abrirModalCamara(tipo, idFila = '') {
   currentVideoElement = document.getElementById('cam-preview');
   currentCanvasElement = document.getElementById('cam-canvas');
 
+  document.getElementById('btn-ejecutar-captura').onclick = capturarFotoReal;
+  document.getElementById('btn-cerrar-camara').onclick = cerrarModalCamara;
+
   navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
     .then(stream => {
-      if (currentVideoElement) currentVideoElement.srcObject = stream;
+      mediaStream = stream;
+      if (currentVideoElement) {
+        currentVideoElement.srcObject = stream;
+      }
     })
     .catch(err => {
       alert('No se pudo acceder a la cámara: ' + err.message);
@@ -1176,7 +1189,10 @@ function abrirModalCamara(tipo, idFila = '') {
 }
 
 function capturarFotoReal() {
-  if (!currentVideoElement || !currentCanvasElement || !activePhotoInputTarget) return;
+  if (!currentVideoElement || !currentCanvasElement || !activePhotoInputTarget) {
+    alert('Error: Elementos de cámara no inicializados correctamente.');
+    return;
+  }
 
   const context = currentCanvasElement.getContext('2d');
   currentCanvasElement.width = currentVideoElement.videoWidth || 320;
@@ -1195,12 +1211,17 @@ function capturarFotoReal() {
 }
 
 function cerrarModalCamara() {
-  if (currentVideoElement && currentVideoElement.srcObject) {
-    let tracks = currentVideoElement.srcObject.getTracks();
-    tracks.forEach(track => track.stop());
+  if (mediaStream) {
+    mediaStream.getTracks().forEach(track => track.stop());
+    mediaStream = null;
+  }
+  if (currentVideoElement) {
+    currentVideoElement.srcObject = null;
   }
   const modalCam = document.getElementById('modal-camara-captura');
-  if (modalCam) modalCam.style.display = 'none';
+  if (modalCam) {
+    modalCam.style.display = 'none';
+  }
 }
 
 async function cargarSelectHabitaciones() {
@@ -1749,6 +1770,13 @@ async function abrirModalRegistroPersonal() {
   document.getElementById('emp-nombre1').value = '';
   document.getElementById('emp-nombre2').value = '';
   document.getElementById('emp-detalles').value = '';
+  document.getElementById('emp-foto-input').value = '';
+
+  const btnFotoEmp = document.getElementById('btn-foto-emp');
+  if (btnFotoEmp) {
+    btnFotoEmp.innerText = '📷';
+    btnFotoEmp.style.background = '#17a2b8';
+  }
 
   const modal = document.getElementById('modal-reg-empleado');
   if (modal) {
@@ -1773,6 +1801,13 @@ async function abrirModalRegistroVisitante() {
   document.getElementById('vis-nombre1').value = '';
   document.getElementById('vis-nombre2').value = '';
   document.getElementById('vis-autorizacion').value = 'Autorizado';
+  document.getElementById('vis-foto-input').value = '';
+
+  const btnFotoVis = document.getElementById('btn-foto-vis');
+  if (btnFotoVis) {
+    btnFotoVis.innerText = '📷';
+    btnFotoVis.style.background = '#17a2b8';
+  }
 
   const modal = document.getElementById('modal-reg-visitante');
   if (modal) {
@@ -1840,17 +1875,17 @@ async function guardarRegistroEmpleado(event) {
   const nuevoRegistro = {
     tipo: 'empleado',
     apartamento: document.getElementById('emp-apto').value,
-    tipo_doc: document.getElementById('emp-tipo-doc').value, // <-- NUEVO: Captura el tipo de documento
+    tipo_doc: document.getElementById('emp-tipo-doc').value,
     documento: document.getElementById('emp-doc').value.trim(),
     nombre: nombreCompleto,
-    primer_nombre: nombre1,                     // <-- NUEVO: Nombre desglosado
-    segundo_nombre: nombre2 || null,            // <-- NUEVO: Nombre desglosado
-    primer_apellido: apellido1,                 // <-- NUEVO: Apellido desglosado
-    segundo_apellido: apellido2 || null,        // <-- NUEVO: Apellido desglosado
+    primer_nombre: nombre1,
+    segundo_nombre: nombre2 || null,
+    primer_apellido: apellido1,
+    segundo_apellido: apellido2 || null,
     detalles: document.getElementById('emp-detalles').value.trim(),
     rol: document.getElementById('emp-rol').value,
     autorizacion: 'Autorizado',
-    foto: document.getElementById('emp-foto-input').value // <-- NUEVO: Captura la foto en Base64
+    foto: document.getElementById('emp-foto-input').value
   };
 
   try {
@@ -1891,17 +1926,17 @@ async function guardarRegistroVisitante(event) {
   const nuevoRegistro = {
     tipo: 'visitante',
     apartamento: document.getElementById('vis-apto').value,
-    tipo_doc: document.getElementById('vis-tipo-doc').value, // <-- NUEVO: Captura el tipo de documento
+    tipo_doc: document.getElementById('vis-tipo-doc').value,
     documento: document.getElementById('vis-doc').value.trim(),
     nombre: nombreCompleto,
-    primer_nombre: nombre1,                     // <-- NUEVO: Nombre desglosado
-    segundo_nombre: nombre2 || null,            // <-- NUEVO: Nombre desglosado
-    primer_apellido: apellido1,                 // <-- NUEVO: Apellido desglosado
-    segundo_apellido: apellido2 || null,        // <-- NUEVO: Apellido desglosado
+    primer_nombre: nombre1,
+    segundo_nombre: nombre2 || null,
+    primer_apellido: apellido1,
+    segundo_apellido: apellido2 || null,
     detalles: 'Visita temporal a apartamento',
     rol: 'Visitante',
     autorizacion: autorizacion,
-    foto: document.getElementById('vis-foto-input').value // <-- NUEVO: Captura la foto en Base64
+    foto: document.getElementById('vis-foto-input').value
   };
 
   try {
@@ -1954,14 +1989,12 @@ async function renderTablaVisitas() {
         return;
       }
 
-      // Filtrar según la pestaña activa superior
       if (pestanaVisitasActiva === 'empleado') {
         datos = datos.filter(item => item.tipo === 'empleado');
       } else if (pestanaVisitasActiva === 'visitante') {
         datos = datos.filter(item => item.tipo === 'visitante');
       }
 
-      // Filtrar por el buscador de texto
       const textoBusqueda = (document.getElementById('search-visitas-input') ? document.getElementById('search-visitas-input').value : '').toLowerCase();
       if (textoBusqueda) {
         datos = datos.filter(item => {
@@ -2015,7 +2048,6 @@ async function renderTablaVisitas() {
         const horaEntradaFmt = item.hora_entrada ? new Date(item.hora_entrada).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
         const fechaFmt = item.creado_en ? item.creado_en.split('T')[0] : '';
 
-        // Miniatura de la foto capturada por la cámara
         const fotoMini = item.foto 
           ? `<img src="${item.foto}" style="width:35px; height:35px; border-radius:50%; object-fit:cover; border:2px solid #28a745;" title="Foto de ingreso">` 
           : '<span style="color:#999; font-size:11px;">Sin foto</span>';
